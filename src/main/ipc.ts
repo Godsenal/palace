@@ -32,6 +32,12 @@ export function registerIpc(am: AppManager): void {
     return s
   })
 
+  h('palace:getOnboarding', () => am.getOnboarding())
+  h('palace:onboardingAction', (_e, key) => am.onboardingAction(key))
+  h('palace:dismissOnboarding', () => {
+    saveSettings({ onboardingDismissed: true })
+  })
+
   h('palace:addManifest', async (_e, m: Manifest) => {
     saveUserManifest(m)
     return am.listApps()

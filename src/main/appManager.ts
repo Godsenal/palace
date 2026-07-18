@@ -9,12 +9,15 @@ import type {
   InstallState,
   LogLine,
   Manifest,
+  OnboardingKey,
+  OnboardingState,
   PrereqResult,
   ProgressEvent,
   RunState,
   Settings
 } from '../shared/types'
 import { parseEnv, writeEnv as writeEnvFile } from './env'
+import { computeOnboarding, openInTerminal } from './onboarding'
 import { loadManifests, resolveDir } from './registry'
 import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo } from './git'
 import { runCapture, runStreaming, spawnLongRunning, killGroup } from './exec'
@@ -442,6 +445,34 @@ export class AppManager {
       this.log(id, 'run', `${m.env.example} → ${m.env.file} 시드`)
     }
     return this.readEnv(id)
+  }
+
+  // ---- 온보딩 ----
+
+  async getOnboarding(): Promise<OnboardingState> {
+    return computeOnboarding(this.deps.getSettings())
+  }
+
+  async onboardingAction(key: OnboardingKey): Promise<{ ok: boolean; message: string }> {
+    const shell = this.shell()
+    switch (key) {
+      case 'github':
+        await openInTerminal('command -v gh >/dev/null 2>&1 || brew install gh; gh auth login', shell)
+        return { ok: true, message: '터미널에서 GitHub 로그인을 진행하세요. 끝나면 “다시 확인”.' }
+      case 'tailscale':
+        await openInTerminal(
+          'command -v tailscale >/dev/null 2>&1 || brew install --cask tailscale; open -a Tailscale',
+          shell
+        )
+        return { ok: true, message: 'Tailscale 앱에서 로그인하세요. 끝나면 “다시 확인”.' }
+      case 'dotfiles':
+        await this.install('dotfiles')
+        return { ok: true, message: 'dotfiles 설치를 시작했어요 — 로그 탭에서 진행을 볼 수 있어요.' }
+      case 'tools':
+        return { ok: true, message: '카탈로그에서 각 도구를 설치하세요.' }
+      default:
+        return { ok: false, message: '알 수 없는 단계' }
+    }
   }
 
   // ---- 정리 ----

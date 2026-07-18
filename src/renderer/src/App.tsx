@@ -3,6 +3,7 @@ import { palace } from './api'
 import type { AppView, LogLine, ProgressEvent, Settings } from '../../shared/types'
 import { Detail } from './components/Detail'
 import { AddAppModal, SettingsModal } from './components/Modals'
+import { Onboarding } from './components/Onboarding'
 
 export default function App(): JSX.Element {
   const [apps, setApps] = useState<AppView[]>([])
@@ -12,6 +13,7 @@ export default function App(): JSX.Element {
   const [toast, setToast] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const showToast = useCallback((msg: string) => {
@@ -27,6 +29,11 @@ export default function App(): JSX.Element {
       setSelectedId((cur) => cur ?? a[0]?.manifest.id ?? null)
     })
     palace.getSettings().then(setSettings)
+
+    // 첫 실행 온보딩: 닫은 적 없고 아직 할 게 남았으면 자동 표시
+    palace.getOnboarding().then((ob) => {
+      if (!ob.dismissed && !ob.allDone) setShowOnboarding(true)
+    })
 
     const offState = palace.onStateChanged((next) => setApps(next))
     const offLog = palace.onLog((l) => {
@@ -74,13 +81,18 @@ export default function App(): JSX.Element {
             <AppItem key={a.manifest.id} app={a} active={a.manifest.id === selectedId} onClick={() => setSelectedId(a.manifest.id)} />
           ))}
         </div>
-        <div className="sidebar-foot">
-          <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => setShowAdd(true)}>
-            ＋ 앱 추가
+        <div className="sidebar-foot" style={{ flexDirection: 'column', gap: 6 }}>
+          <button className="btn ghost sm" style={{ width: '100%', justifyContent: 'flex-start' }} onClick={() => setShowOnboarding(true)}>
+            🚀 새 컴퓨터 셋업
           </button>
-          <button className="iconbtn" title="설정" onClick={() => setShowSettings(true)}>
-            ⚙
-          </button>
+          <div className="row" style={{ width: '100%' }}>
+            <button className="btn ghost sm" style={{ flex: 1 }} onClick={() => setShowAdd(true)}>
+              ＋ 앱 추가
+            </button>
+            <button className="iconbtn" title="설정" onClick={() => setShowSettings(true)}>
+              ⚙
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -122,6 +134,19 @@ export default function App(): JSX.Element {
             setShowSettings(false)
             palace.listApps().then(setApps)
             showToast('설정 저장됨')
+          }}
+        />
+      )}
+      {showOnboarding && (
+        <Onboarding
+          showToast={showToast}
+          onGoCatalog={() => {
+            const firstAvailable = apps.find((a) => a.installState === 'not-installed')
+            if (firstAvailable) setSelectedId(firstAvailable.manifest.id)
+          }}
+          onClose={(dismiss) => {
+            setShowOnboarding(false)
+            if (dismiss) palace.dismissOnboarding()
           }}
         />
       )}

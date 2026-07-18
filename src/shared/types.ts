@@ -139,6 +139,31 @@ export interface Settings {
   /** 로그인 셸(명령 실행 시 PATH 확보용). 기본 자동감지. */
   shell?: string
   theme?: 'dark' | 'light'
+  /** 온보딩을 닫았는지(닫으면 자동 표시 안 함, 버튼으로 언제든 다시 열 수 있음). */
+  onboardingDismissed?: boolean
+}
+
+// ---- 온보딩(새 컴퓨터 셋업 체크리스트) ----
+
+export type OnboardingKey = 'github' | 'tailscale' | 'dotfiles' | 'tools'
+
+export interface OnboardingStep {
+  key: OnboardingKey
+  title: string
+  hint: string
+  ok: boolean
+  detail?: string
+  /** 진행 표시(예: '2/2'). */
+  progress?: string
+  /** 이 단계에 palace 가 실행할 수 있는 액션이 있는가. */
+  actionable: boolean
+  actionLabel?: string
+}
+
+export interface OnboardingState {
+  steps: OnboardingStep[]
+  allDone: boolean
+  dismissed: boolean
 }
 
 // ---- IPC 이벤트 페이로드 ----
@@ -183,6 +208,9 @@ export interface PalaceAPI {
   setSettings(patch: Partial<Settings>): Promise<Settings>
   addManifest(m: Manifest): Promise<AppView[]>
   removeManifest(id: string): Promise<AppView[]>
+  getOnboarding(): Promise<OnboardingState>
+  onboardingAction(key: OnboardingKey): Promise<{ ok: boolean; message: string }>
+  dismissOnboarding(): Promise<void>
   openExternal(url: string): Promise<void>
   openDir(id: string): Promise<void>
   writeClipboard(text: string): Promise<void>
