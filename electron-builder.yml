@@ -1,0 +1,19 @@
+appId: com.godsenal.palace
+productName: palace
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - out/**
+mac:
+  category: public.app-category.developer-tools
+  icon: resources/icon.icns
+  target:
+    - dmg
+    - zip
+  # 개인용: 공증/서명 없이 로컬 빌드. 배포하려면 identity 설정.
+  identity: null
+publish:
+  provider: github
+  owner: Godsenal
+  repo: palace
