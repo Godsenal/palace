@@ -24,5 +24,7 @@ module.exports = {
   dmg: {
     title: '${productName} ${version}'
   },
-  publish: { provider: 'github', owner: 'Godsenal', repo: 'palace' }
+  // releaseType 'release' = 태그 push 시 바로 게시(자동업데이트 즉시 반영).
+  // 검토 게이트를 원하면 'draft' 로 바꾸고 GitHub에서 수동 publish.
+  publish: { provider: 'github', owner: 'Godsenal', repo: 'palace', releaseType: 'release' }
 }
