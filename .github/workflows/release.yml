@@ -18,9 +18,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-      - run: npm ci
+      # npm "Exit handler never called!" 버그 회피 → 최신 npm.
+      - run: npm install -g npm@latest
+      - run: npm ci --no-audit --no-fund
 
       - name: Build & publish to GitHub Releases
         run: npm run release
