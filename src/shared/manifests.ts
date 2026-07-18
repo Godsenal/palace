@@ -89,6 +89,7 @@ export const BUILTIN_MANIFESTS: Manifest[] = [
     dashboard: { url: 'http://localhost:8422', port: 8422 },
     readme: 'README.md',
     extraDocs: ['CLAUDE.md'],
+    env: { file: 'loops.env', example: 'loops.env.example' },
     notes:
       'install.sh 는 대화형(brew 설치 제안)이라 최초 셋업은 cmux 터미널 권장. 대시보드/디스패처는 cmux 패널에서 실행되어야 한다. loopctl 은 install.sh 가 ~/.local/bin 에 전역 등록한다.',
     builtin: true

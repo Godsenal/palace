@@ -92,6 +92,14 @@ app.whenReady().then(() => {
 
   createWindow()
 
+  // 허브 자체 자동업데이트: 패키징 빌드에서만 시작 시 확인 → 있으면 다운로드+알림.
+  // (macOS 무음 적용은 서명 필요 — 서명 전엔 확인/알림까지 동작)
+  if (app.isPackaged) {
+    autoUpdater.checkForUpdatesAndNotify().catch(() => {
+      /* 릴리즈 피드 없거나 오프라인 — 무시 */
+    })
+  }
+
   // 주기적 헬스 폴링(포트 열림/닫힘, cmux 에서 켠 것 반영)
   const poll = setInterval(() => schedulePush(), 4000)
   app.on('before-quit', () => clearInterval(poll))

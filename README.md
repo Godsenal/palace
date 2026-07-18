@@ -13,7 +13,8 @@
   누가 켰든 **대시보드 포트가 뜨면 실행중으로 표시**하고 임베드한다.
 - **대시보드 임베드** — 실행 중이면 `<webview>` 로 각 앱의 로컬 대시보드(loops 8422, cmux-remote 8787 …)를 그대로 띄운다.
 - **업데이트** — `git fetch` 로 뒤처짐 감지 → `git pull`(+ 재설치). 허브 자체는 electron-updater.
-- **진단(Doctor)** — 전제 도구(bun/cmux/gh/tailscale …) 점검 + 설치 명령 복사.
+- **진단(Doctor)** — 전제 도구(bun/cmux/gh/tailscale …) 점검 + palace가 **직접 자동설치**(암호·GUI·로그인 필요한 3가지만 수동 표시).
+- **환경변수** — 앱이 읽는 env 파일(예: `loops.env`)을 앱 안에서 편집(비밀값 마스킹, 주석 보존).
 - **문서** — 설치된 앱의 README(및 CLAUDE.md 등)를 렌더링.
 
 ## 개발
@@ -24,8 +25,20 @@ npm install
 npm run dev          # 개발 모드 (HMR)
 npm run typecheck    # 타입 점검
 npm run build        # 프로덕션 번들 → out/
-npm run dist:mac     # .dmg / .zip 패키징 → dist/
+npm run dist:mac     # .dmg / .zip 패키징 → dist/ (로컬 unsigned)
 ```
+
+## 릴리즈 / 배포
+
+`v*` 태그를 push하면 GitHub Actions가 macOS에서 빌드해 **GitHub Releases에 게시**하고,
+기존 palace들은 `electron-updater`로 자동 갱신된다.
+
+```sh
+npm version patch && git push && git push --tags   # → release 워크플로우 실행
+```
+
+서명·공증 켜는 법은 [docs/배포-서명-릴리즈.md](docs/배포-서명-릴리즈.md), 새 앱 추가는
+[docs/새-앱-추가하기.md](docs/새-앱-추가하기.md) 참고.
 
 ## 앱을 어떻게 추가하나 (확장)
 

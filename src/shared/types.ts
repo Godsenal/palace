@@ -64,10 +64,34 @@ export interface Manifest {
   /** 추가로 렌더할 문서 경로들(예: CLAUDE.md). */
   extraDocs?: string[]
   notes?: string
+  /** 앱이 읽는 env 파일 편집 지원(있을 때만 '환경' 탭 노출). */
+  env?: EnvSpec
   /** 내장 매니페스트는 true. */
   builtin?: boolean
   /** UI 강조색(옵션). */
   accent?: string
+}
+
+export interface EnvSpec {
+  /** 앱 디렉토리 기준 env 파일 경로(예: loops.env, .env). */
+  file: string
+  /** 없을 때 시드로 복사할 예시 파일(예: loops.env.example). */
+  example?: string
+  /** 비밀값으로 마스킹할 키(정규식 문자열). 기본 휴리스틱에 추가. */
+  secretKeys?: string[]
+}
+
+export interface EnvEntry {
+  key: string
+  value: string
+  secret: boolean
+}
+
+export interface EnvView {
+  path: string
+  exists: boolean
+  hasExample: boolean
+  entries: EnvEntry[]
 }
 
 export type InstallState = 'not-installed' | 'installing' | 'installed' | 'error'
@@ -152,6 +176,9 @@ export interface PalaceAPI {
   installPrereq(id: string, name: string): Promise<PrereqResult>
   installAllPrereqs(id: string): Promise<PrereqResult[]>
   readDocs(id: string, path?: string): Promise<{ path: string; html: string } | null>
+  readEnv(id: string): Promise<EnvView | null>
+  writeEnv(id: string, entries: EnvEntry[]): Promise<EnvView | null>
+  seedEnvFromExample(id: string): Promise<EnvView | null>
   getSettings(): Promise<Settings>
   setSettings(patch: Partial<Settings>): Promise<Settings>
   addManifest(m: Manifest): Promise<AppView[]>

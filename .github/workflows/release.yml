@@ -1,0 +1,38 @@
+name: release
+
+# v* 태그를 push 하면 macOS 러너에서 빌드 → GitHub Releases 에 게시.
+# electron-updater 가 이 릴리즈(zip + latest-mac.yml)를 보고 허브 자체를 자동 갱신한다.
+#   git tag v0.1.1 && git push origin v0.1.1
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Build & publish to GitHub Releases
+        run: npm run release
+        env:
+          # 릴리즈 게시용(Actions 기본 제공)
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ↓ 아래 시크릿을 등록하면 자동으로 서명 + 공증된다(없으면 unsigned 게시).
+          #   CSC_LINK: Developer ID .p12 를 base64 로 인코딩한 값
+          #   CSC_KEY_PASSWORD: 그 .p12 비밀번호
+          #   APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID: 공증(notarytool)
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}

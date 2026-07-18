@@ -1,9 +1,11 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, copyFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { clipboard } from 'electron'
 import type { ChildProcess } from 'node:child_process'
 import type {
   AppView,
+  EnvEntry,
+  EnvView,
   InstallState,
   LogLine,
   Manifest,
@@ -12,6 +14,7 @@ import type {
   RunState,
   Settings
 } from '../shared/types'
+import { parseEnv, writeEnv as writeEnvFile } from './env'
 import { loadManifests, resolveDir } from './registry'
 import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo } from './git'
 import { runCapture, runStreaming, spawnLongRunning, killGroup } from './exec'
@@ -398,6 +401,47 @@ export class AppManager {
     if (!existsSync(abs)) return null
     const md = readFileSync(abs, 'utf8')
     return { path: rel, html: renderMarkdown(md, m.repoHttps) }
+  }
+
+  // ---- 환경변수 ----
+
+  async readEnv(id: string): Promise<EnvView | null> {
+    const m = mustManifest(id)
+    if (!m.env) return null
+    const { dir, installed } = resolveDir(m, this.deps.getSettings())
+    if (!installed) return null
+    const file = join(dir, m.env.file)
+    const example = m.env.example ? join(dir, m.env.example) : undefined
+    return {
+      path: m.env.file,
+      exists: existsSync(file),
+      hasExample: !!example && existsSync(example),
+      entries: parseEnv(existsSync(file) ? file : example ?? file, m.env.secretKeys)
+    }
+  }
+
+  async writeEnvFile(id: string, entries: EnvEntry[]): Promise<EnvView | null> {
+    const m = mustManifest(id)
+    if (!m.env) return null
+    const { dir, installed } = resolveDir(m, this.deps.getSettings())
+    if (!installed) return null
+    writeEnvFile(join(dir, m.env.file), entries)
+    this.log(id, 'run', `${m.env.file} 저장됨 (${entries.length} keys)`)
+    return this.readEnv(id)
+  }
+
+  async seedEnvFromExample(id: string): Promise<EnvView | null> {
+    const m = mustManifest(id)
+    if (!m.env?.example) return this.readEnv(id)
+    const { dir, installed } = resolveDir(m, this.deps.getSettings())
+    if (!installed) return null
+    const file = join(dir, m.env.file)
+    const example = join(dir, m.env.example)
+    if (!existsSync(file) && existsSync(example)) {
+      copyFileSync(example, file)
+      this.log(id, 'run', `${m.env.example} → ${m.env.file} 시드`)
+    }
+    return this.readEnv(id)
   }
 
   // ---- 정리 ----

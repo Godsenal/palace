@@ -5,9 +5,10 @@ import { DashboardEmbed } from './DashboardEmbed'
 import { LogsView } from './LogsView'
 import { Docs } from './Docs'
 import { Doctor } from './Doctor'
+import { EnvEditor } from './EnvEditor'
 import type { LogLine } from '../../../shared/types'
 
-type Tab = 'overview' | 'dashboard' | 'logs' | 'docs' | 'doctor'
+type Tab = 'overview' | 'dashboard' | 'logs' | 'docs' | 'doctor' | 'env'
 
 export function Detail({
   app,
@@ -110,6 +111,11 @@ export function Detail({
         <button className={`tab ${tab === 'docs' ? 'active' : ''}`} onClick={() => setTab('docs')}>
           문서
         </button>
+        {m.env && (
+          <button className={`tab ${tab === 'env' ? 'active' : ''}`} onClick={() => setTab('env')}>
+            환경
+          </button>
+        )}
         <button className={`tab ${tab === 'doctor' ? 'active' : ''}`} onClick={() => setTab('doctor')}>
           진단
         </button>
@@ -123,6 +129,7 @@ export function Detail({
       )}
       {tab === 'logs' && <LogsView logs={logs} />}
       {tab === 'docs' && <Docs app={app} />}
+      {tab === 'env' && <EnvEditor app={app} showToast={showToast} />}
       {tab === 'doctor' && <Doctor app={app} showToast={showToast} />}
     </div>
   )

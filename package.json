@@ -13,8 +13,9 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
-    "dist": "electron-vite build && electron-builder",
-    "dist:mac": "electron-vite build && electron-builder --mac"
+    "dist": "electron-vite build && electron-builder --config electron-builder.config.cjs",
+    "dist:mac": "electron-vite build && electron-builder --mac --config electron-builder.config.cjs",
+    "release": "electron-vite build && electron-builder --mac --publish always --config electron-builder.config.cjs"
   },
   "dependencies": {
     "electron-updater": "^6.3.9",
