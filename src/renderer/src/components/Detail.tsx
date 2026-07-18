@@ -6,9 +6,10 @@ import { LogsView } from './LogsView'
 import { Docs } from './Docs'
 import { Doctor } from './Doctor'
 import { EnvEditor } from './EnvEditor'
+import { Changes } from './Changes'
 import type { LogLine } from '../../../shared/types'
 
-type Tab = 'overview' | 'dashboard' | 'logs' | 'docs' | 'doctor' | 'env'
+type Tab = 'overview' | 'dashboard' | 'logs' | 'docs' | 'doctor' | 'env' | 'changes'
 
 export function Detail({
   app,
@@ -124,6 +125,11 @@ export function Detail({
             환경
           </button>
         )}
+        {installed && !isService && (
+          <button className={`tab ${tab === 'changes' ? 'active' : ''}`} onClick={() => setTab('changes')}>
+            변경
+          </button>
+        )}
         <button className={`tab ${tab === 'doctor' ? 'active' : ''}`} onClick={() => setTab('doctor')}>
           진단
         </button>
@@ -138,6 +144,7 @@ export function Detail({
       {tab === 'logs' && <LogsView logs={logs} />}
       {tab === 'docs' && <Docs app={app} />}
       {tab === 'env' && <EnvEditor app={app} showToast={showToast} />}
+      {tab === 'changes' && <Changes app={app} />}
       {tab === 'doctor' && <Doctor app={app} showToast={showToast} />}
     </div>
   )
@@ -167,14 +174,19 @@ export function Detail({
           </>
         )}
         {installed && !isService && (
-          <button
-            className={`btn ${app.git?.updateAvailable ? 'primary' : 'green'}`}
-            disabled={!!busy}
-            onClick={doUpdate}
-            title="git pull + install.sh 재적용"
-          >
-            {spin('update') || '↻'} 재적용{app.git?.updateAvailable ? ` (↑${app.git.behind})` : ''}
-          </button>
+          <>
+            <button
+              className={`btn ${app.git?.updateAvailable ? 'primary' : 'green'}`}
+              disabled={!!busy}
+              onClick={doUpdate}
+              title="git pull + install.sh 로 설정을 다시 적용합니다"
+            >
+              {spin('update') || '↻'} 설정 적용{app.git?.updateAvailable ? ` (↑${app.git.behind})` : ''}
+            </button>
+            <button className="btn sm" onClick={() => setTab('changes')} title="무엇이 바뀌는지 보기">
+              변경 보기
+            </button>
+          </>
         )}
         {installed && running && (
           <button className="btn primary" onClick={() => setTab('dashboard')}>

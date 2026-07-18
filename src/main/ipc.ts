@@ -21,6 +21,7 @@ export function registerIpc(am: AppManager): void {
   h('palace:installPrereq', (_e, id: string, name: string) => am.installPrereq(id, name))
   h('palace:installAllPrereqs', (_e, id: string) => am.installAllPrereqs(id))
   h('palace:readDocs', (_e, id: string, path?: string) => am.readDocs(id, path))
+  h('palace:getChanges', (_e, id: string) => am.getChanges(id))
   h('palace:readEnv', (_e, id: string) => am.readEnv(id))
   h('palace:writeEnv', (_e, id: string, entries) => am.writeEnvFile(id, entries))
   h('palace:seedEnv', (_e, id: string) => am.seedEnvFromExample(id))

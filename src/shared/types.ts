@@ -123,6 +123,29 @@ export interface AppView {
   lastError?: string
 }
 
+export interface ChangeFile {
+  status: string
+  file: string
+}
+export interface ChangeCommit {
+  sha: string
+  subject: string
+}
+/** git 변경 요약(로컬 uncommitted + 원격 대비). '변경' 탭용. */
+export interface ChangesView {
+  branch?: string
+  behind: number
+  ahead: number
+  dirty: ChangeFile[]
+  incoming: ChangeCommit[]
+  outgoing: ChangeCommit[]
+  diffStat: string
+  /** 원격에서 들어올 통합 diff(길면 잘림). */
+  diff: string
+  diffTruncated: boolean
+  clean: boolean
+}
+
 export interface PrereqResult {
   name: string
   ok: boolean
@@ -201,6 +224,7 @@ export interface PalaceAPI {
   installPrereq(id: string, name: string): Promise<PrereqResult>
   installAllPrereqs(id: string): Promise<PrereqResult[]>
   readDocs(id: string, path?: string): Promise<{ path: string; html: string } | null>
+  getChanges(id: string): Promise<ChangesView | null>
   readEnv(id: string): Promise<EnvView | null>
   writeEnv(id: string, entries: EnvEntry[]): Promise<EnvView | null>
   seedEnvFromExample(id: string): Promise<EnvView | null>

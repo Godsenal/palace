@@ -4,6 +4,7 @@ import { clipboard } from 'electron'
 import type { ChildProcess } from 'node:child_process'
 import type {
   AppView,
+  ChangesView,
   EnvEntry,
   EnvView,
   InstallState,
@@ -406,6 +407,47 @@ export class AppManager {
     return { path: rel, html: renderMarkdown(md, m.repoHttps) }
   }
 
+  // ---- 변경사항(git diff) ----
+
+  async getChanges(id: string): Promise<ChangesView | null> {
+    const m = mustManifest(id)
+    const { dir, installed } = resolveDir(m, this.deps.getSettings())
+    if (!installed) return null
+    const sh = this.shell()
+    await runCapture('git fetch --quiet', dir, sh, 90_000)
+    const [branch, counts, status, incoming, outgoing, diffStat, diff] = await Promise.all([
+      runCapture('git rev-parse --abbrev-ref HEAD', dir, sh),
+      runCapture('git rev-list --left-right --count @{u}...HEAD 2>/dev/null', dir, sh),
+      runCapture('git status --short', dir, sh),
+      runCapture('git log --oneline --no-decorate HEAD..@{u} 2>/dev/null | head -50', dir, sh),
+      runCapture('git log --oneline --no-decorate @{u}..HEAD 2>/dev/null | head -50', dir, sh),
+      runCapture('git diff --stat HEAD..@{u} 2>/dev/null', dir, sh),
+      runCapture('git diff HEAD..@{u} 2>/dev/null', dir, sh)
+    ])
+    const cm = counts.stdout.trim().match(/^(\d+)\s+(\d+)$/)
+    const behind = cm ? Number(cm[1]) : 0
+    const ahead = cm ? Number(cm[2]) : 0
+    const dirty = status.stdout
+      .split('\n')
+      .filter((l) => l.trim())
+      .map((l) => ({ status: l.slice(0, 2).trim(), file: l.slice(3) }))
+    const CAP = 24_000
+    const rawDiff = diff.stdout
+    const truncated = rawDiff.length > CAP
+    return {
+      branch: branch.stdout.trim() || undefined,
+      behind,
+      ahead,
+      dirty,
+      incoming: parseLog(incoming.stdout),
+      outgoing: parseLog(outgoing.stdout),
+      diffStat: diffStat.stdout.trim(),
+      diff: truncated ? rawDiff.slice(0, CAP) : rawDiff,
+      diffTruncated: truncated,
+      clean: behind === 0 && ahead === 0 && dirty.length === 0
+    }
+  }
+
   // ---- 환경변수 ----
 
   async readEnv(id: string): Promise<EnvView | null> {
@@ -494,6 +536,16 @@ function readVersion(dir: string): string | undefined {
     /* noop */
   }
   return undefined
+}
+
+function parseLog(out: string): { sha: string; subject: string }[] {
+  return out
+    .split('\n')
+    .filter((l) => l.trim())
+    .map((l) => {
+      const sp = l.indexOf(' ')
+      return sp > 0 ? { sha: l.slice(0, sp), subject: l.slice(sp + 1) } : { sha: l, subject: '' }
+    })
 }
 
 function mustManifest(id: string): Manifest {

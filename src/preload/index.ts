@@ -21,6 +21,7 @@ const api: PalaceAPI = {
   installPrereq: (id, name) => ipcRenderer.invoke('palace:installPrereq', id, name),
   installAllPrereqs: (id) => ipcRenderer.invoke('palace:installAllPrereqs', id),
   readDocs: (id, path) => ipcRenderer.invoke('palace:readDocs', id, path),
+  getChanges: (id) => ipcRenderer.invoke('palace:getChanges', id),
   readEnv: (id) => ipcRenderer.invoke('palace:readEnv', id),
   writeEnv: (id, entries) => ipcRenderer.invoke('palace:writeEnv', id, entries),
   seedEnvFromExample: (id) => ipcRenderer.invoke('palace:seedEnv', id),
