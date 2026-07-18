@@ -27,6 +27,8 @@ export function Detail({
   const installed = app.installState === 'installed'
   const running = app.runState === 'running'
   const managed = !!app.pid
+  // 서버형(시작하거나 대시보드가 있는) vs 설정 적용형(dotfiles 처럼 1회 적용)
+  const isService = !!(m.start || m.dashboard)
 
   const run = async (label: string, fn: () => Promise<unknown>): Promise<void> => {
     setBusy(label)
@@ -78,9 +80,11 @@ export function Detail({
 
         <div className="chips">
           <span className={`chip ${installed ? 'ok' : ''}`}>{installed ? '● 설치됨' : '○ 미설치'}</span>
-          <span className={`chip ${running ? 'ok' : ''}`}>
-            {running ? (managed ? `▶ 실행 중 (pid ${app.pid})` : '▶ 실행 중 (cmux)') : '■ 정지'}
-          </span>
+          {isService && (
+            <span className={`chip ${running ? 'ok' : ''}`}>
+              {running ? (managed ? `▶ 실행 중 (pid ${app.pid})` : '▶ 실행 중 (cmux)') : '■ 정지'}
+            </span>
+          )}
           {m.dashboard?.port && (
             <span className={`chip ${app.portOpen ? 'ok' : ''}`}>
               포트 <b>{m.dashboard.port}</b> {app.portOpen ? 'open' : 'closed'}
@@ -94,7 +98,9 @@ export function Detail({
             </span>
           )}
           {app.git?.updateAvailable && <span className="chip warn">↑ {app.git.behind} commit 뒤처짐</span>}
-          <span className="chip">{m.launchMode === 'cmux' ? 'cmux 기동' : m.launchMode === 'process' ? '직접 기동' : '수동'}</span>
+          <span className="chip">
+            {!isService ? '설정 · 1회 적용' : m.launchMode === 'cmux' ? 'cmux 기동' : m.launchMode === 'process' ? '직접 기동' : '수동'}
+          </span>
         </div>
       </div>
 
@@ -102,9 +108,11 @@ export function Detail({
         <button className={`tab ${tab === 'overview' ? 'active' : ''}`} onClick={() => setTab('overview')}>
           개요
         </button>
-        <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>
-          대시보드
-        </button>
+        {m.dashboard && (
+          <button className={`tab ${tab === 'dashboard' ? 'active' : ''}`} onClick={() => setTab('dashboard')}>
+            대시보드
+          </button>
+        )}
         <button className={`tab ${tab === 'logs' ? 'active' : ''}`} onClick={() => setTab('logs')}>
           로그<span className="badge-count">{logs.length || ''}</span>
         </button>
@@ -143,12 +151,12 @@ export function Detail({
             {spin('install') || '⤓'} {app.installState === 'installing' ? '설치 중…' : '설치'}
           </button>
         )}
-        {installed && !running && m.launchMode === 'process' && (
+        {installed && !running && m.start && m.launchMode === 'process' && (
           <button className="btn green" disabled={!!busy} onClick={doStart}>
             {spin('start') || '▶'} 시작
           </button>
         )}
-        {installed && !running && m.launchMode !== 'process' && (
+        {installed && !running && m.start && m.launchMode !== 'process' && (
           <>
             <button className="btn green" disabled={!!busy} onClick={doCmux}>
               {spin('cmux') || '▶'} cmux에서 실행
@@ -157,6 +165,16 @@ export function Detail({
               명령 복사
             </button>
           </>
+        )}
+        {installed && !isService && (
+          <button
+            className={`btn ${app.git?.updateAvailable ? 'primary' : 'green'}`}
+            disabled={!!busy}
+            onClick={doUpdate}
+            title="git pull + install.sh 재적용"
+          >
+            {spin('update') || '↻'} 재적용{app.git?.updateAvailable ? ` (↑${app.git.behind})` : ''}
+          </button>
         )}
         {installed && running && (
           <button className="btn primary" onClick={() => setTab('dashboard')}>
@@ -168,7 +186,7 @@ export function Detail({
             {spin('stop') || '■'} 정지
           </button>
         )}
-        {installed && (
+        {installed && isService && (
           <button
             className={`btn ${app.git?.updateAvailable ? 'primary' : ''}`}
             disabled={!!busy}

@@ -3,6 +3,41 @@ import type { Manifest } from './types'
 // palace 내장 카탈로그. 사용자 추가 매니페스트는 ~/.palace/apps/*.json 에서 로드된다.
 export const BUILTIN_MANIFESTS: Manifest[] = [
   {
+    id: 'dotfiles',
+    name: 'dotfiles',
+    tagline: '내 셸·git·ssh·claude 설정 — 새 컴퓨터에 그대로 복원',
+    description:
+      '멱등 install.sh 가 zsh/git/npm/mise/ssh/claude 설정을 $HOME 에 심링크한다. 기존 파일은 .bak 로 백업하고 시크릿은 건드리지 않는다. 새 컴퓨터에서 palace 로 이거 하나만 "설치"하면 내 개발환경 설정이 복원된다. 서버가 아니라 1회 적용형이라 시작/대시보드가 없다.',
+    repo: 'git@github.com:Godsenal/dotfiles.git',
+    repoHttps: 'https://github.com/Godsenal/dotfiles',
+    runtime: 'other',
+    detectPaths: ['~/dotfiles', '~/.dotfiles'],
+    accent: '#9aa0aa',
+    prerequisites: [
+      {
+        name: 'git',
+        check: 'command -v git',
+        install: 'xcode-select --install',
+        manual: true,
+        note: 'Xcode Command Line Tools 설치 창이 뜹니다 — 시스템 GUI 라 수동.'
+      },
+      {
+        name: 'GitHub 인증',
+        check: 'gh auth status >/dev/null 2>&1 || ssh -o BatchMode=yes -T git@github.com 2>&1 | grep -qi "successfully authenticated"',
+        install: 'gh auth login',
+        manual: true,
+        note: 'private repo clone 에 필요. 새 컴퓨터에서 한 번 `gh auth login`(또는 SSH 키 등록).'
+      }
+    ],
+    install: [{ run: './install.sh' }],
+    update: [{ run: 'git pull --ff-only' }, { run: './install.sh' }],
+    launchMode: 'manual',
+    readme: 'README.md',
+    notes:
+      '멱등이라 몇 번 돌려도 안전(기존 파일은 .bak.<타임스탬프> 백업). "업데이트" = git pull + install.sh 재적용. ~/.npmrc 도 여기서 심링크된다(내부 레지스트리 설정 포함).',
+    builtin: true
+  },
+  {
     id: 'cmux-remote',
     name: 'cmux-remote',
     tagline: '폰에서 cmux 터미널(Claude Code 등)을 조종',
