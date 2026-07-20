@@ -83,6 +83,15 @@ src/
   `sed -i '' 's#https://<사내-npm-proxy-호스트>/#https://registry.npmjs.org/#g' package-lock.json`
 - **CI Node 버전**: 20은 번들 npm의 `Exit handler never called!` 버그로 `npm ci`가 조용히 실패(exit 0인데
   설치 불완전)한다. 워크플로우는 **Node 22 + `npm install -g npm@latest`**.
+- **git upstream 미설정 → 업데이트/감지 실패**: palace 로 clone 하지 않고 미리 있던 repo(detectPaths)나
+  tracking 없이 셋업된 repo 는 `main` 에 upstream 이 없어 `git pull --ff-only` 가 "no tracking
+  information" 으로 exit 1, `@{u}` 기반 behind 감지도 죽는다. → `git.ts`의 **`ensureUpstream()`**이
+  install(clone 직후)·fetchAndCompare(감지)·update(직전)에서 `origin/<branch>` 로 자가치유한다. 새 git
+  실행 경로를 추가하면 이걸 먼저 태울 것.
+- **cmux `new-workspace` 는 앱이 떠 있어야 함**: `cmux <path>`와 달리 스스로 앱을 안 띄우고 "caller's
+  window" 에 워크스페이스를 만든다 → cmux 미실행 상태에서 위임하면 실패해 클립보드 폴백으로 빠진다.
+  `openInCmux` 는 **`ensureCmuxRunning()`**(probe=`cmux list-workspaces`, 안 뜨면 `open -a cmux` 후
+  소켓 응답까지 폴링)으로 먼저 앱을 깨운 뒤 위임한다. 로그 소음 줄이려 `CMUX_QUIET=1` 프리픽스.
 
 ## 관례
 

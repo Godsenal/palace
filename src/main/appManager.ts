@@ -20,7 +20,7 @@ import type {
 import { parseEnv, writeEnv as writeEnvFile } from './env'
 import { computeOnboarding, openInTerminal } from './onboarding'
 import { loadManifests, resolveDir } from './registry'
-import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo } from './git'
+import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo, ensureUpstream } from './git'
 import { runCapture, runStreaming, spawnLongRunning, killGroup } from './exec'
 import { isPortOpen } from './health'
 import { renderMarkdown } from './markdown'
@@ -135,6 +135,8 @@ export class AppManager {
         }
         if (code !== 0) throw new Error('git clone 실패 (권한/네트워크 확인)')
       }
+      // clone 직후/기존 repo 모두 upstream 보장 → 이후 update 의 git pull 이 항상 성립
+      if (isGitRepo(dir)) await ensureUpstream(dir, this.shell())
       // 2) install steps
       const steps = m.install ?? []
       for (let i = 0; i < steps.length; i++) {
@@ -175,6 +177,9 @@ export class AppManager {
     const steps = m.update ?? [{ run: 'git pull --ff-only' }]
     this.progress({ appId: id, phase: 'update', status: 'begin', message: '업데이트 시작' })
     try {
+      // git repo 면 upstream 자가치유(추적 브랜치 미설정 시 origin/<branch> 로) →
+      // "no tracking information" 으로 `git pull --ff-only` 가 실패하는 걸 막는다.
+      if (isGitRepo(dir)) await ensureUpstream(dir, this.shell())
       for (let i = 0; i < steps.length; i++) {
         const s = steps[i]
         this.progress({
@@ -306,18 +311,26 @@ export class AppManager {
     // cmux 바이너리 찾기: PATH → 앱 번들 경로
     const cmuxBin = await this.findCmux()
     if (cmuxBin) {
-      this.log(id, 'run', `$ cmux new-workspace --cwd ${dir} --command ${JSON.stringify(startCmd)}`)
-      const res = await runCapture(
-        `${shellQuote(cmuxBin)} new-workspace --cwd ${shellQuote(dir)} --command ${shellQuote(startCmd)}`,
-        undefined,
-        this.shell(),
-        15_000
-      )
-      if (res.code === 0) {
-        setTimeout(() => this.deps.emitState(), 1500)
-        return { ok: true, message: `cmux 새 워크스페이스에서 실행했어요 — ${startCmd}` }
+      // `new-workspace` 는 "caller's window" 에 워크스페이스를 만드는 명령이라 cmux 앱이
+      // 이미 떠 있어야 동작한다(`cmux <path>` 와 달리 스스로 앱을 안 띄움). 안 떠 있으면
+      // 먼저 실행하고 소켓이 응답할 때까지 기다린 뒤 위임한다.
+      const ready = await this.ensureCmuxRunning(cmuxBin)
+      if (ready) {
+        this.log(id, 'run', `$ cmux new-workspace --cwd ${dir} --command ${JSON.stringify(startCmd)}`)
+        const res = await runCapture(
+          `CMUX_QUIET=1 ${shellQuote(cmuxBin)} new-workspace --cwd ${shellQuote(dir)} --command ${shellQuote(startCmd)}`,
+          undefined,
+          this.shell(),
+          15_000
+        )
+        if (res.code === 0) {
+          setTimeout(() => this.deps.emitState(), 1500)
+          return { ok: true, message: `cmux 새 워크스페이스에서 실행했어요 — ${startCmd}` }
+        }
+        this.log(id, 'run', res.stderr.trim() || 'cmux 실행 실패', 'error')
+      } else {
+        this.log(id, 'run', 'cmux 앱이 준비되지 않아(소켓 미응답) 위임을 건너뜁니다', 'error')
       }
-      this.log(id, 'run', res.stderr.trim() || 'cmux 실행 실패', 'error')
     }
 
     // 폴백: 클립보드 + cmux 열기
@@ -327,6 +340,28 @@ export class AppManager {
       ok: true,
       message: 'cmux CLI 자동실행이 안 돼 명령을 클립보드에 복사했어요. cmux 새 탭에서 ⌘V.'
     }
+  }
+
+  /** cmux 소켓이 응답하는지 확인하고, 안 떠 있으면 실행해 준비될 때까지 폴링(최대 ~12s). */
+  private async ensureCmuxRunning(cmuxBin: string): Promise<boolean> {
+    if (await this.cmuxAlive(cmuxBin)) return true
+    await runCapture('open -a cmux 2>/dev/null || true', undefined, this.shell(), 5000)
+    for (let i = 0; i < 24; i++) {
+      await delay(500)
+      if (await this.cmuxAlive(cmuxBin)) return true
+    }
+    return false
+  }
+
+  /** read-only probe: cmux 소켓이 살아있으면 exit 0. */
+  private async cmuxAlive(cmuxBin: string): Promise<boolean> {
+    const res = await runCapture(
+      `CMUX_QUIET=1 ${shellQuote(cmuxBin)} list-workspaces`,
+      undefined,
+      this.shell(),
+      5000
+    )
+    return res.code === 0
   }
 
   /**

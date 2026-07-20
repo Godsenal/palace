@@ -34,7 +34,35 @@ export async function gitInfo(dir: string, shell?: string): Promise<GitInfo> {
 export async function fetchAndCompare(dir: string, shell?: string): Promise<GitInfo> {
   if (!isGitRepo(dir)) return {}
   await runCapture('git fetch --quiet', dir, shell, 90_000)
+  await ensureUpstream(dir, shell)
   return gitInfo(dir, shell)
+}
+
+/**
+ * 현재 브랜치에 upstream(추적 브랜치)이 없으면 `origin/<branch>` 로 설정한다.
+ *
+ * palace 로 clone 하지 않고 미리 존재하던 repo(detectPaths) 나, tracking 없이 셋업된
+ * repo 에서 `git pull --ff-only` 가 "There is no tracking information..." 로 exit 1 나는 걸
+ * 막는다. `@{u}` 에 의존하는 behind/ahead 감지(gitInfo)도 같이 살아난다.
+ * 이미 upstream 이 있거나 git repo 가 아니거나 detached HEAD 면 아무것도 안 한다(멱등).
+ */
+export async function ensureUpstream(dir: string, shell?: string): Promise<void> {
+  if (!isGitRepo(dir)) return
+  // 이미 upstream 설정돼 있으면 skip
+  const has = await runCapture('git rev-parse --abbrev-ref --symbolic-full-name @{u}', dir, shell)
+  if (has.code === 0 && has.stdout.trim()) return
+  const br = (await runCapture('git rev-parse --abbrev-ref HEAD', dir, shell)).stdout.trim()
+  if (!br || br === 'HEAD') return // detached HEAD — 손대지 않음
+  const originRef = `refs/remotes/origin/${br}`
+  let ref = await runCapture(`git show-ref --verify --quiet ${quote(originRef)}`, dir, shell)
+  if (ref.code !== 0) {
+    // 원격추적 ref 가 아직 없으면 한 번 fetch(최초 셋업 케이스)
+    await runCapture('git fetch origin --quiet', dir, shell, 90_000)
+    ref = await runCapture(`git show-ref --verify --quiet ${quote(originRef)}`, dir, shell)
+  }
+  if (ref.code === 0) {
+    await runCapture(`git branch --set-upstream-to=${quote('origin/' + br)} ${quote(br)}`, dir, shell)
+  }
 }
 
 /** repo 를 targetDir 로 clone. 진행 스트리밍. */
