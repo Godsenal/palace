@@ -164,6 +164,11 @@ export interface Settings {
   theme?: 'dark' | 'light'
   /** 온보딩을 닫았는지(닫으면 자동 표시 안 함, 버튼으로 언제든 다시 열 수 있음). */
   onboardingDismissed?: boolean
+  /**
+   * 로그인 시 palace(+cmux)를 자동 실행하도록 로그인 항목에 등록할지. 기본 true.
+   * false 로 두면 palace 가 로그인 항목을 건드리지 않는다(사용자가 직접 관리).
+   */
+  launchAtLogin?: boolean
 }
 
 // ---- 온보딩(새 컴퓨터 셋업 체크리스트) ----

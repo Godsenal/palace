@@ -4,6 +4,7 @@ import electronUpdater from 'electron-updater'
 import { AppManager } from './appManager'
 import { registerIpc, broadcast } from './ipc'
 import { loadSettings, ensureDirs } from './paths'
+import { syncLoginItems, ensureCmuxRunning } from './autostart'
 import type { LogLine, ProgressEvent } from '../shared/types'
 
 const { autoUpdater } = electronUpdater
@@ -91,6 +92,18 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+
+  // 부팅 자동화: 로그인 항목(palace + cmux) 동기화. 로그인으로 자동 실행됐을 땐
+  // cmux 도 띄워 도구들(cmux-remote·loops)이 각자의 훅/supervisor 로 붙게 한다.
+  // settings.launchAtLogin === false 면 로그인 항목을 건드리지 않는다.
+  {
+    const s = loadSettings()
+    const shell = s.shell
+    if (s.launchAtLogin !== false) {
+      void syncLoginItems(shell)
+      if (app.getLoginItemSettings().wasOpenedAtLogin) void ensureCmuxRunning(shell)
+    }
+  }
 
   // 허브 자체 자동업데이트: 패키징 빌드에서만 시작 시 확인 → 있으면 다운로드+알림.
   // (macOS 무음 적용은 서명 필요 — 서명 전엔 확인/알림까지 동작)
