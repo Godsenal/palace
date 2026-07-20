@@ -1,6 +1,6 @@
 {
   "name": "palace",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "왕국 — 당신이 만든 self-hosted 도구들의 관제 데스크탑 앱 (cmux-remote, loops, …)",
   "main": "./out/main/index.js",
   "author": "Godsenal",
