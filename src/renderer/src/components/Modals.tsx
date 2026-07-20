@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { palace } from '../api'
 import type { AppView, LaunchMode, Manifest, Settings } from '../../../shared/types'
 
@@ -145,6 +145,38 @@ export function SettingsModal({
   const [autoWireTools, setAutoWireTools] = useState(settings.autoWireTools !== false)
   const [saving, setSaving] = useState(false)
   const [hub, setHub] = useState<string | null>(null)
+  const [hubBusy, setHubBusy] = useState(false)
+  const [hubPct, setHubPct] = useState<number | null>(null)
+  const [hubReady, setHubReady] = useState(false)
+
+  useEffect(() => {
+    return palace.onHubProgress((p) => {
+      if (p.error) {
+        setHub(`업데이트 오류: ${p.error}`)
+        setHubBusy(false)
+        return
+      }
+      if (typeof p.percent === 'number') setHubPct(Math.round(p.percent))
+      if (p.downloaded) {
+        setHubReady(true)
+        setHubBusy(false)
+      }
+    })
+  }, [])
+
+  const downloadHub = async (): Promise<void> => {
+    setHubBusy(true)
+    setHubReady(false)
+    setHubPct(0)
+    setHub(null)
+    const r = await palace.downloadHubUpdate()
+    if (r.ok) {
+      setHubReady(true)
+    } else {
+      setHub(r.message || `업데이트 실패: ${r.error ?? ''}`)
+    }
+    setHubBusy(false)
+  }
 
   const save = async (): Promise<void> => {
     setSaving(true)
@@ -204,8 +236,21 @@ export function SettingsModal({
         <div className="field">
           <label>허브 자체 업데이트</label>
           <div className="row">
-            <button className="btn sm" onClick={checkHub}>업데이트 확인</button>
+            <button className="btn sm" onClick={checkHub} disabled={hubBusy}>업데이트 확인</button>
+            {!hubReady && (
+              <button className="btn sm" onClick={downloadHub} disabled={hubBusy}>
+                {hubBusy ? `다운로드 ${hubPct ?? 0}%` : '지금 업데이트'}
+              </button>
+            )}
+            {hubReady && (
+              <button className="btn sm primary" onClick={() => palace.installHubUpdate()}>
+                재시작해서 설치
+              </button>
+            )}
             {hub && <span className="faint" style={{ fontSize: 12 }}>{hub}</span>}
+          </div>
+          <div className="hint">
+            "지금 업데이트"는 새 버전을 내려받고, 끝나면 "재시작해서 설치"로 적용합니다. (앱 실행 시 자동 확인도 계속 동작)
           </div>
         </div>
         <div className="modal-foot">

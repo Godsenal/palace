@@ -260,4 +260,17 @@ export interface PalaceAPI {
   onStateChanged(cb: (apps: AppView[]) => void): () => void
   // 허브 자체 업데이트
   checkForHubUpdate(): Promise<{ available: boolean; version?: string; error?: string }>
+  /** 새 버전을 지금 다운로드(완료 시 resolve). 진행률은 onHubProgress 로. */
+  downloadHubUpdate(): Promise<{ ok: boolean; version?: string; message?: string; error?: string }>
+  /** 다운로드된 업데이트를 적용하며 재시작. */
+  installHubUpdate(): Promise<void>
+  onHubProgress(cb: (p: HubProgress) => void): () => void
+}
+
+/** 허브 자체 업데이트 다운로드 진행/완료/오류. */
+export interface HubProgress {
+  percent?: number
+  downloaded?: boolean
+  version?: string
+  error?: string
 }

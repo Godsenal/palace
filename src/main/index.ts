@@ -91,6 +91,34 @@ app.whenReady().then(() => {
     }
   })
 
+  // 진행률/완료/오류를 renderer 로 스트리밍(설정 모달의 진행 표시용).
+  autoUpdater.on('download-progress', (p) => broadcast('palace:hubProgress', { percent: p.percent }))
+  autoUpdater.on('update-downloaded', (info) =>
+    broadcast('palace:hubProgress', { percent: 100, downloaded: true, version: info.version })
+  )
+  autoUpdater.on('error', (e) =>
+    broadcast('palace:hubProgress', { error: e instanceof Error ? e.message : String(e) })
+  )
+
+  // "지금 업데이트": 새 버전을 다운로드(완료 시 resolve). 없으면 message 로 알림.
+  ipcMain.handle('palace:downloadHubUpdate', async () => {
+    try {
+      autoUpdater.autoDownload = false
+      const r = await autoUpdater.checkForUpdates()
+      const v = r?.updateInfo?.version
+      if (!v || v === app.getVersion()) return { ok: false, message: '이미 최신 버전입니다' }
+      await autoUpdater.downloadUpdate()
+      return { ok: true, version: v }
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : String(e) }
+    }
+  })
+
+  // 다운로드된 업데이트 적용 + 재시작.
+  ipcMain.handle('palace:installHubUpdate', () => {
+    setImmediate(() => autoUpdater.quitAndInstall())
+  })
+
   createWindow()
 
   // 부팅 자동화: 로그인 항목(palace + cmux) 동기화. 로그인으로 자동 실행됐을 땐

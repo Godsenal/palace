@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { PalaceAPI, LogLine, ProgressEvent, AppView } from '../shared/types'
+import type { PalaceAPI, LogLine, ProgressEvent, AppView, HubProgress } from '../shared/types'
 
 function sub<T>(channel: string, cb: (payload: T) => void): () => void {
   const listener = (_e: unknown, payload: T): void => cb(payload)
@@ -37,6 +37,9 @@ const api: PalaceAPI = {
   openDir: (id) => ipcRenderer.invoke('palace:openDir', id),
   writeClipboard: (text) => ipcRenderer.invoke('palace:writeClipboard', text),
   checkForHubUpdate: () => ipcRenderer.invoke('palace:checkHubUpdate'),
+  downloadHubUpdate: () => ipcRenderer.invoke('palace:downloadHubUpdate'),
+  installHubUpdate: () => ipcRenderer.invoke('palace:installHubUpdate'),
+  onHubProgress: (cb) => sub<HubProgress>('palace:hubProgress', cb),
   onLog: (cb) => sub<LogLine>('palace:log', cb),
   onProgress: (cb) => sub<ProgressEvent>('palace:progress', cb),
   onStateChanged: (cb) => sub<AppView[]>('palace:state', cb)
