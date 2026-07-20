@@ -77,11 +77,10 @@ src/
 
 ## ⚠️ 실환경 함정 (겪고 해결한 것)
 
-- **npm 레지스트리**: 이 머신 `~/.npmrc`가 당근 내부 프록시(`npm-registry-proxy.kr.wekarrot.net`)를
-  가리킨다 → `npm install`이 만든 `package-lock.json`의 resolved URL이 내부 호스트를 가리켜
-  **공개 CI 러너에서 `EALLOWREMOTE`로 실패**. lockfile 갱신 후엔 반드시 공개 레지스트리로 정규화:
-  `sed -i '' 's#https://npm-registry-proxy\.kr\.wekarrot\.net/#https://registry.npmjs.org/#g' package-lock.json`
-  (경로 동일 → integrity 유지).
+- **npm 레지스트리**: 이 머신 `~/.npmrc`가 사내 npm 프록시를 가리킨다 → `npm install`이 만든
+  `package-lock.json`의 resolved URL이 내부 호스트를 가리켜 **공개 CI 러너에서 `EALLOWREMOTE`로 실패**.
+  lockfile 갱신 후엔 반드시 공개 레지스트리로 정규화(경로 동일 → integrity 유지):
+  `sed -i '' 's#https://<사내-npm-proxy-호스트>/#https://registry.npmjs.org/#g' package-lock.json`
 - **CI Node 버전**: 20은 번들 npm의 `Exit handler never called!` 버그로 `npm ci`가 조용히 실패(exit 0인데
   설치 불완전)한다. 워크플로우는 **Node 22 + `npm install -g npm@latest`**.
 
