@@ -58,6 +58,11 @@ export interface Manifest {
   launchMode: LaunchMode
   /** launchMode 가 process 일 때 spawn 할 명령. cmux/manual 일 때는 안내로 표시. */
   start?: Step
+  /**
+   * 이 도구의 OS 수준 자동시작을 배선하는 **멱등** 명령(예: ~/.zshrc 훅, launchd supervisor).
+   * palace 가 실행 시(설정 autoWireTools) 또는 버튼으로 돌린다. 이미 배선돼 있으면 no-op 이어야 한다.
+   */
+  autostart?: Step
   dashboard?: DashboardSpec
   /** 앱 디렉토리 기준 README 경로. */
   readme?: string
@@ -169,6 +174,11 @@ export interface Settings {
    * false 로 두면 palace 가 로그인 항목을 건드리지 않는다(사용자가 직접 관리).
    */
   launchAtLogin?: boolean
+  /**
+   * palace 실행 시 설치된 도구들의 자동시작(매니페스트 autostart)을 자동 배선할지. 기본 true.
+   * 이미 다 깔린 컴퓨터도 palace 만 켜면 훅/supervisor 가 걸린다. 멱등이라 반복 안전.
+   */
+  autoWireTools?: boolean
 }
 
 // ---- 온보딩(새 컴퓨터 셋업 체크리스트) ----
@@ -225,6 +235,7 @@ export interface PalaceAPI {
   start(id: string): Promise<AppView>
   stop(id: string): Promise<AppView>
   openInCmux(id: string): Promise<{ ok: boolean; message: string }>
+  ensureAutostart(id: string): Promise<{ ok: boolean; message: string }>
   runDoctor(id: string): Promise<PrereqResult[]>
   installPrereq(id: string, name: string): Promise<PrereqResult>
   installAllPrereqs(id: string): Promise<PrereqResult[]>

@@ -329,6 +329,33 @@ export class AppManager {
     }
   }
 
+  /**
+   * 도구의 OS 자동시작 배선(매니페스트 autostart)을 멱등 실행. 이미 배선돼 있으면 no-op.
+   * 이미 다 깔린 컴퓨터에서 "설치/업데이트" 없이도 훅/supervisor 를 걸 수 있는 단일 경로.
+   */
+  async ensureAutostart(id: string): Promise<{ ok: boolean; message: string }> {
+    const m = mustManifest(id)
+    if (!m.autostart) return { ok: true, message: '이 도구는 자동시작 배선이 없어요' }
+    const { dir, installed } = resolveDir(m, this.deps.getSettings())
+    if (!installed) return { ok: false, message: '먼저 설치하세요' }
+    const cwd = m.autostart.cwd ? join(dir, m.autostart.cwd) : dir
+    const res = await runCapture(m.autostart.run, cwd, this.shell(), 20_000)
+    const out = (res.stdout + res.stderr).trim()
+    if (out) this.log(id, 'autostart', out, res.code === 0 ? 'info' : 'error')
+    if (res.code === 0) return { ok: true, message: '자동시작 배선 완료' }
+    return { ok: false, message: out || '자동시작 배선 실패' }
+  }
+
+  /** 설치된 도구 전체의 자동시작을 배선(palace 시작 시 호출). 실패해도 조용히 넘어간다. */
+  async wireAllAutostart(): Promise<void> {
+    for (const m of loadManifests()) {
+      if (!m.autostart) continue
+      const { installed } = resolveDir(m, this.deps.getSettings())
+      if (!installed) continue
+      await this.ensureAutostart(m.id).catch(() => undefined)
+    }
+  }
+
   private async findCmux(): Promise<string | null> {
     const res = await runCapture(
       'command -v cmux || (test -x "/Applications/cmux.app/Contents/Resources/bin/cmux" && echo "/Applications/cmux.app/Contents/Resources/bin/cmux")',

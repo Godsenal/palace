@@ -103,6 +103,9 @@ app.whenReady().then(() => {
       void syncLoginItems(shell)
       if (app.getLoginItemSettings().wasOpenedAtLogin) void ensureCmuxRunning(shell)
     }
+    // 설치된 도구들의 자동시작(훅/supervisor)을 멱등 배선 — 이미 다 깔린 컴퓨터도
+    // palace 만 켜면 걸린다. 이미 배선돼 있으면 no-op.
+    if (s.autoWireTools !== false) void appManager?.wireAllAutostart()
   }
 
   // 허브 자체 자동업데이트: 패키징 빌드에서만 시작 시 확인 → 있으면 다운로드+알림.

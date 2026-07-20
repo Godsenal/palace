@@ -141,13 +141,20 @@ export function SettingsModal({
 }): JSX.Element {
   const [installRoot, setInstallRoot] = useState(settings.installRoot)
   const [shell, setShell] = useState(settings.shell ?? '')
+  const [launchAtLogin, setLaunchAtLogin] = useState(settings.launchAtLogin !== false)
+  const [autoWireTools, setAutoWireTools] = useState(settings.autoWireTools !== false)
   const [saving, setSaving] = useState(false)
   const [hub, setHub] = useState<string | null>(null)
 
   const save = async (): Promise<void> => {
     setSaving(true)
     try {
-      const s = await palace.setSettings({ installRoot: installRoot.trim(), shell: shell.trim() || undefined })
+      const s = await palace.setSettings({
+        installRoot: installRoot.trim(),
+        shell: shell.trim() || undefined,
+        launchAtLogin,
+        autoWireTools
+      })
       onSaved(s)
     } finally {
       setSaving(false)
@@ -175,6 +182,24 @@ export function SettingsModal({
           <label>로그인 셸 (선택)</label>
           <input value={shell} onChange={(e) => setShell(e.target.value)} placeholder="/bin/zsh (비우면 자동감지)" />
           <div className="hint">명령 실행 시 PATH(bun·loopctl·brew) 확보용. 보통 비워두면 됩니다.</div>
+        </div>
+        <div className="field">
+          <label>부팅 자동 실행</label>
+          <label className="row" style={{ cursor: 'pointer', gap: 8 }}>
+            <input type="checkbox" checked={launchAtLogin} onChange={(e) => setLaunchAtLogin(e.target.checked)} />
+            <span>로그인 시 palace + cmux 자동 실행 (로그인 항목 등록)</span>
+          </label>
+          <div className="hint">끄면 palace 가 로그인 항목을 건드리지 않습니다.</div>
+        </div>
+        <div className="field">
+          <label>도구 자동시작 배선</label>
+          <label className="row" style={{ cursor: 'pointer', gap: 8 }}>
+            <input type="checkbox" checked={autoWireTools} onChange={(e) => setAutoWireTools(e.target.checked)} />
+            <span>palace 실행 시 설치된 도구의 자동시작 자동 배선</span>
+          </label>
+          <div className="hint">
+            cmux-remote(~/.zshrc 훅)·loops(launchd supervisor)를 멱등 배선. 이미 다 깔린 컴퓨터도 palace 만 켜면 걸립니다.
+          </div>
         </div>
         <div className="field">
           <label>허브 자체 업데이트</label>

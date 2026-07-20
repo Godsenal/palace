@@ -17,6 +17,7 @@ const api: PalaceAPI = {
   start: (id) => ipcRenderer.invoke('palace:start', id),
   stop: (id) => ipcRenderer.invoke('palace:stop', id),
   openInCmux: (id) => ipcRenderer.invoke('palace:openInCmux', id),
+  ensureAutostart: (id) => ipcRenderer.invoke('palace:ensureAutostart', id),
   runDoctor: (id) => ipcRenderer.invoke('palace:doctor', id),
   installPrereq: (id, name) => ipcRenderer.invoke('palace:installPrereq', id, name),
   installAllPrereqs: (id) => ipcRenderer.invoke('palace:installAllPrereqs', id),

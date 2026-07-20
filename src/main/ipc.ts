@@ -17,6 +17,7 @@ export function registerIpc(am: AppManager): void {
   h('palace:start', (_e, id: string) => am.start(id))
   h('palace:stop', (_e, id: string) => am.stop(id))
   h('palace:openInCmux', (_e, id: string) => am.openInCmux(id))
+  h('palace:ensureAutostart', (_e, id: string) => am.ensureAutostart(id))
   h('palace:doctor', (_e, id: string) => am.doctor(id))
   h('palace:installPrereq', (_e, id: string, name: string) => am.installPrereq(id, name))
   h('palace:installAllPrereqs', (_e, id: string) => am.installAllPrereqs(id))

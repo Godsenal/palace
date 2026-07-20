@@ -75,6 +75,10 @@ export const BUILTIN_MANIFESTS: Manifest[] = [
     update: [{ run: 'git pull --ff-only' }, { run: 'bun install' }],
     launchMode: 'cmux',
     start: { run: 'bun start' },
+    // 멱등: ~/.zshrc 훅이 이미 있으면 no-op, 없으면 배선(WIRE_ONLY=시작은 안 함).
+    autostart: {
+      run: 'grep -q "cmux-remote autostart" "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || CMUX_REMOTE_WIRE_ONLY=1 zsh scripts/install-autostart.sh'
+    },
     dashboard: { url: 'http://localhost:8787', port: 8787 },
     readme: 'README.md',
     notes:
@@ -121,6 +125,10 @@ export const BUILTIN_MANIFESTS: Manifest[] = [
     update: [{ run: 'git pull --ff-only' }],
     launchMode: 'cmux',
     start: { run: 'loopctl dashboard' },
+    // 멱등: launchd supervisor 가 이미 등록돼 있으면 no-op, 없으면 등록.
+    autostart: {
+      run: 'launchctl print "gui/$(id -u)/com.loops.supervisor" >/dev/null 2>&1 || ./loopctl supervisor install'
+    },
     dashboard: { url: 'http://localhost:8422', port: 8422 },
     readme: 'README.md',
     extraDocs: ['CLAUDE.md'],
