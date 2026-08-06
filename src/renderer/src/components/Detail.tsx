@@ -49,14 +49,14 @@ export function Detail({
       if (m.launchMode === 'process') await palace.start(m.id)
       else {
         const r = await palace.openInCmux(m.id)
-        showToast(r.message)
+        showToast(r.ok ? r.message : `⚠ ${r.message}`)
       }
     })
   const doStop = (): Promise<void> => run('stop', () => palace.stop(m.id))
   const doCmux = (): Promise<void> =>
     run('cmux', async () => {
       const r = await palace.openInCmux(m.id)
-      showToast(r.message)
+      showToast(r.ok ? r.message : `⚠ ${r.message}`)
     })
   const copyCmd = (): Promise<void> =>
     run('copy', async () => {
@@ -83,7 +83,13 @@ export function Detail({
           <span className={`chip ${installed ? 'ok' : ''}`}>{installed ? '● 설치됨' : '○ 미설치'}</span>
           {isService && (
             <span className={`chip ${running ? 'ok' : ''}`}>
-              {running ? (managed ? `▶ 실행 중 (pid ${app.pid})` : '▶ 실행 중 (cmux)') : '■ 정지'}
+              {running
+                ? managed
+                  ? `▶ 실행 중 (pid ${app.pid})`
+                  : '▶ 실행 중 (cmux)'
+                : app.runState === 'starting'
+                  ? '⋯ 시작 중'
+                  : '■ 정지'}
             </span>
           )}
           {m.dashboard?.port && (

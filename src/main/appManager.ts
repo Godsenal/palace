@@ -311,25 +311,33 @@ export class AppManager {
     // cmux 바이너리 찾기: PATH → 앱 번들 경로
     const cmuxBin = await this.findCmux()
     if (cmuxBin) {
-      // `new-workspace` 는 "caller's window" 에 워크스페이스를 만드는 명령이라 cmux 앱이
-      // 이미 떠 있어야 동작한다(`cmux <path>` 와 달리 스스로 앱을 안 띄움). 안 떠 있으면
-      // 먼저 실행하고 소켓이 응답할 때까지 기다린 뒤 위임한다.
-      const ready = await this.ensureCmuxRunning(cmuxBin)
-      if (ready) {
-        this.log(id, 'run', `$ cmux new-workspace --cwd ${dir} --command ${JSON.stringify(startCmd)}`)
-        const res = await runCapture(
-          `CMUX_QUIET=1 ${shellQuote(cmuxBin)} new-workspace --cwd ${shellQuote(dir)} --command ${shellQuote(startCmd)}`,
-          undefined,
-          this.shell(),
-          15_000
-        )
-        if (res.code === 0) {
-          setTimeout(() => this.deps.emitState(), 1500)
-          return { ok: true, message: `cmux 새 워크스페이스에서 실행했어요 — ${startCmd}` }
+      this.errors.delete(id)
+      this.starting.add(id)
+      this.progress({ appId: id, phase: 'start', status: 'begin', message: startCmd })
+      this.deps.emitState()
+      try {
+        // `new-workspace` 는 "caller's window" 에 워크스페이스를 만드는 명령이라 cmux 앱이
+        // 이미 떠 있어야 동작한다(`cmux <path>` 와 달리 스스로 앱을 안 띄움). 안 떠 있으면
+        // 먼저 실행하고 소켓이 응답할 때까지 기다린 뒤 위임한다.
+        const ready = await this.ensureCmuxRunning(cmuxBin, id)
+        if (ready) {
+          this.log(id, 'run', `$ cmux new-workspace --cwd ${dir} --command ${JSON.stringify(startCmd)}`)
+          const res = await runCapture(
+            `CMUX_QUIET=1 ${shellQuote(cmuxBin)} new-workspace --cwd ${shellQuote(dir)} --command ${shellQuote(startCmd)}`,
+            undefined,
+            this.shell(),
+            15_000
+          )
+          if (res.code === 0) {
+            return await this.confirmDelegated(id, m, cmuxBin, res.stdout, startCmd)
+          }
+          this.log(id, 'run', res.stderr.trim() || 'cmux 실행 실패', 'error')
+        } else {
+          this.log(id, 'run', 'cmux 앱이 준비되지 않아(소켓 미응답) 위임을 건너뜁니다', 'error')
         }
-        this.log(id, 'run', res.stderr.trim() || 'cmux 실행 실패', 'error')
-      } else {
-        this.log(id, 'run', 'cmux 앱이 준비되지 않아(소켓 미응답) 위임을 건너뜁니다', 'error')
+      } finally {
+        this.starting.delete(id)
+        this.deps.emitState()
       }
     }
 
@@ -342,11 +350,71 @@ export class AppManager {
     }
   }
 
-  /** cmux 소켓이 응답하는지 확인하고, 안 떠 있으면 실행해 준비될 때까지 폴링(최대 ~12s). */
-  private async ensureCmuxRunning(cmuxBin: string): Promise<boolean> {
+  /**
+   * 위임의 성공은 "cmux 가 명령을 받았다"까지만 뜻한다. 새 워크스페이스 안에서 서버가
+   * 즉사하면(포트를 다른 인스턴스가 물고 있는 경우가 대표적) palace 는 성공 토스트를 띄우고
+   * 앱은 계속 "정지" — 눌러도 아무 일도 안 일어난 것처럼 보인다. 그래서 대시보드 포트가
+   * 실제로 열리는지까지 확인하고, 안 열리면 그 워크스페이스 화면 끝을 실패 사유로 돌려준다.
+   */
+  private async confirmDelegated(
+    id: string,
+    m: Manifest,
+    cmuxBin: string,
+    newWorkspaceOut: string,
+    startCmd: string
+  ): Promise<{ ok: boolean; message: string }> {
+    const port = m.dashboard?.port
+    if (!port) {
+      // 확인할 포트가 없는 도구 — 명령을 넘긴 것까지가 우리가 아는 전부.
+      this.progress({ appId: id, phase: 'start', status: 'done', message: '위임 완료' })
+      setTimeout(() => this.deps.emitState(), 1500)
+      return { ok: true, message: `cmux 새 워크스페이스에서 실행했어요 — ${startCmd}` }
+    }
+
+    for (let i = 0; i < 60; i++) {
+      if (await isPortOpen(port)) {
+        this.progress({ appId: id, phase: 'start', status: 'done', message: '실행 중' })
+        this.deps.emitState()
+        return { ok: true, message: `cmux 워크스페이스에서 실행 중 — 포트 ${port}` }
+      }
+      await delay(500)
+    }
+
+    const ws = newWorkspaceOut.match(/workspace:\d+/)?.[0]
+    const tail = ws ? await this.readWorkspaceTail(cmuxBin, ws) : ''
+    if (tail) this.log(id, 'run', tail, 'error')
+    const why = tail ? firstMeaningfulLine(tail) : ''
+    const msg = `${startCmd} 를 넘겼지만 포트 ${port} 가 안 열렸어요${why ? ` — ${why}` : ' — 그 cmux 워크스페이스 화면을 확인하세요'}`
+    this.errors.set(id, msg)
+    this.progress({ appId: id, phase: 'start', status: 'error', message: msg })
+    return { ok: false, message: msg }
+  }
+
+  /** 위임한 워크스페이스의 화면 끝부분 — 실패 사유(EADDRINUSE 등)가 여기 찍힌다. */
+  private async readWorkspaceTail(cmuxBin: string, workspaceRef: string): Promise<string> {
+    const res = await runCapture(
+      `CMUX_QUIET=1 ${shellQuote(cmuxBin)} read-screen --workspace ${shellQuote(workspaceRef)} --lines 40`,
+      undefined,
+      this.shell(),
+      8000
+    )
+    if (res.code !== 0) return ''
+    return res.stdout
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l.trim())
+      .slice(-8)
+      .join('\n')
+  }
+
+  /** cmux 소켓이 응답하는지 확인하고, 안 떠 있으면 실행해 준비될 때까지 폴링(최대 ~15s). */
+  private async ensureCmuxRunning(cmuxBin: string, id?: string): Promise<boolean> {
     if (await this.cmuxAlive(cmuxBin)) return true
+    if (id) this.log(id, 'run', 'cmux 앱이 안 떠 있어 먼저 실행합니다…')
     await runCapture('open -a cmux 2>/dev/null || true', undefined, this.shell(), 5000)
-    for (let i = 0; i < 24; i++) {
+    // 프로브가 타임아웃까지 가면 한 번에 5s 가 날아간다 — 반복 횟수가 아니라 마감시간으로 끊는다.
+    const deadline = Date.now() + 15_000
+    while (Date.now() < deadline) {
       await delay(500)
       if (await this.cmuxAlive(cmuxBin)) return true
     }
@@ -608,6 +676,14 @@ function parseLog(out: string): { sha: string; subject: string }[] {
       const sp = l.indexOf(' ')
       return sp > 0 ? { sha: l.slice(0, sp), subject: l.slice(sp + 1) } : { sha: l, subject: '' }
     })
+}
+
+/** 화면 끝부분에서 토스트에 쓸 한 줄 — 에러처럼 보이는 줄이 있으면 그걸, 없으면 마지막 줄. */
+function firstMeaningfulLine(tail: string): string {
+  const lines = tail.split('\n').filter((l) => l.trim())
+  const err = lines.find((l) => /error|EADDRINUSE|not found|failed|권한|실패/i.test(l))
+  const pick = (err ?? lines[lines.length - 1] ?? '').trim()
+  return pick.length > 140 ? `${pick.slice(0, 140)}…` : pick
 }
 
 function mustManifest(id: string): Manifest {
