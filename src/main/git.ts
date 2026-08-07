@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, statSync, unlinkSync } from 'node:fs'
 import { join } from 'node:path'
 import { runCapture, runStreaming } from './exec'
 import type { GitInfo } from '../shared/types'
@@ -33,9 +33,45 @@ export async function gitInfo(dir: string, shell?: string): Promise<GitInfo> {
 /** origin fetch 후 최신 behind 수 반영. */
 export async function fetchAndCompare(dir: string, shell?: string): Promise<GitInfo> {
   if (!isGitRepo(dir)) return {}
+  await clearStaleIndexLock(dir, shell)
   await runCapture('git fetch --quiet', dir, shell, 90_000)
   await ensureUpstream(dir, shell)
   return gitInfo(dir, shell)
+}
+
+/** 이 시간보다 오래된 index.lock 은 살아있는 git 의 것이 아니라고 본다(정상 락은 수백 ms). */
+const STALE_LOCK_MS = 60_000
+
+/**
+ * 죽은 `.git/index.lock` 을 치운다. 지웠으면 true.
+ *
+ * runCapture 는 타임아웃에 SIGKILL 을 날리고, 앱이 꺼지면 자식 git 도 같이 죽는다. 그 순간
+ * index 를 쓰던 git(`git status` 등)이 락을 남기면, 그 repo 의 `git pull --ff-only` 는
+ * 손으로 락을 지울 때까지 영원히 exit 1 이다 — 업데이트 버튼이 계속 실패하는 실제 원인.
+ * 오래됐고(STALE_LOCK_MS) 아무 프로세스도 열고 있지 않은 락만 지운다(느린 git 은 보호).
+ */
+export async function clearStaleIndexLock(dir: string, shell?: string): Promise<boolean> {
+  if (!isGitRepo(dir)) return false
+  // worktree/서브모듈은 .git 이 파일이라 경로가 다르다 → git 에게 실제 gitdir 을 묻는다.
+  const gitDir = (await runCapture('git rev-parse --absolute-git-dir', dir, shell)).stdout.trim()
+  if (!gitDir) return false
+  const lock = join(gitDir, 'index.lock')
+  let ageMs: number
+  try {
+    ageMs = Date.now() - statSync(lock).mtimeMs
+  } catch {
+    return false // 락 없음 — 정상
+  }
+  if (ageMs < STALE_LOCK_MS) return false // 방금 생긴 락 = 지금 돌고 있는 git 일 수 있음
+  // git 은 rename 전까지 락 fd 를 열어둔다 → 잡고 있는 프로세스가 있으면 살아있는 것.
+  const held = await runCapture(`lsof -t ${quote(lock)}`, dir, shell, 10_000)
+  if (held.stdout.trim()) return false
+  try {
+    unlinkSync(lock)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

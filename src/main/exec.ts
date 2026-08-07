@@ -30,23 +30,32 @@ export function runCapture(cmd: string, cwd?: string, shell?: string, timeoutMs 
     })
     let stdout = ''
     let stderr = ''
+    // 타임아웃은 SIGTERM 먼저. git 은 TERM 을 받으면 자기 .git/index.lock 을 지우고 죽지만,
+    // SIGKILL 로 바로 죽이면 락이 남아 그 repo 의 이후 pull 이 전부 실패한다.
+    let hardKill: ReturnType<typeof setTimeout> | undefined
     const timer = setTimeout(() => {
       try {
-        child.kill('SIGKILL')
+        child.kill('SIGTERM')
       } catch {
         /* noop */
       }
+      hardKill = setTimeout(() => {
+        try {
+          child.kill('SIGKILL')
+        } catch {
+          /* noop */
+        }
+      }, 3000)
     }, timeoutMs)
+    const done = (r: RunResult): void => {
+      clearTimeout(timer)
+      if (hardKill) clearTimeout(hardKill)
+      resolve(r)
+    }
     child.stdout.on('data', (d) => (stdout += d.toString()))
     child.stderr.on('data', (d) => (stderr += d.toString()))
-    child.on('error', (e) => {
-      clearTimeout(timer)
-      resolve({ code: 127, stdout, stderr: stderr + String(e) })
-    })
-    child.on('close', (code) => {
-      clearTimeout(timer)
-      resolve({ code: code ?? 1, stdout, stderr })
-    })
+    child.on('error', (e) => done({ code: 127, stdout, stderr: stderr + String(e) }))
+    child.on('close', (code) => done({ code: code ?? 1, stdout, stderr }))
   })
 }
 

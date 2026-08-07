@@ -15,12 +15,13 @@ import type {
   PrereqResult,
   ProgressEvent,
   RunState,
-  Settings
+  Settings,
+  Step
 } from '../shared/types'
 import { parseEnv, writeEnv as writeEnvFile } from './env'
 import { computeOnboarding, openInTerminal } from './onboarding'
 import { loadManifests, resolveDir } from './registry'
-import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo, ensureUpstream } from './git'
+import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo, ensureUpstream, clearStaleIndexLock } from './git'
 import { runCapture, runStreaming, spawnLongRunning, killGroup } from './exec'
 import { isPortOpen } from './health'
 import { renderMarkdown } from './markdown'
@@ -60,6 +61,35 @@ export class AppManager {
 
   private progress(p: Omit<ProgressEvent, never>): void {
     this.deps.emitProgress(p)
+  }
+
+  /**
+   * install/update 스텝 하나를 실행하며 로그를 흘린다.
+   * 실패했을 때 "(exit 1)" 만 보여주면 원인을 알 수 없어서, 첫 에러 줄(대개 git 이 뱉는
+   * 진짜 원인)을 같이 돌려준다 — 카드에 뜨는 실패 메시지에 그대로 붙인다.
+   */
+  private async runStep(
+    id: string,
+    phase: 'install' | 'update',
+    s: Step,
+    dir: string
+  ): Promise<{ code: number; reason: string }> {
+    const cwd = s.cwd ? join(dir, s.cwd) : dir
+    let reason = ''
+    const code = await runStreaming(
+      s.run,
+      cwd,
+      (line, level) => {
+        if (level === 'error' && !reason && line.trim()) reason = line.trim()
+        this.log(id, phase, line, level)
+      },
+      this.shell()
+    )
+    return { code, reason }
+  }
+
+  private static stepError(phase: '설치' | '업데이트', s: Step, code: number, reason: string): Error {
+    return new Error(`${phase} 스텝 실패: ${s.run} (exit ${code})${reason ? ` — ${reason}` : ''}`)
   }
 
   // ---- 상태 계산 ----
@@ -150,9 +180,8 @@ export class AppManager {
           stepTotal: steps.length
         })
         this.log(id, 'install', `$ ${s.run}`)
-        const cwd = s.cwd ? join(dir, s.cwd) : dir
-        const code = await runStreaming(s.run, cwd, (line, level) => this.log(id, 'install', line, level), this.shell())
-        if (code !== 0) throw new Error(`설치 스텝 실패: ${s.run} (exit ${code})`)
+        const { code, reason } = await this.runStep(id, 'install', s, dir)
+        if (code !== 0) throw AppManager.stepError('설치', s, code, reason)
       }
       this.progress({ appId: id, phase: 'install', status: 'done', message: '설치 완료' })
     } catch (e) {
@@ -179,7 +208,12 @@ export class AppManager {
     try {
       // git repo 면 upstream 자가치유(추적 브랜치 미설정 시 origin/<branch> 로) →
       // "no tracking information" 으로 `git pull --ff-only` 가 실패하는 걸 막는다.
-      if (isGitRepo(dir)) await ensureUpstream(dir, this.shell())
+      // 죽은 index.lock 도 같이 치운다 — 남아있으면 pull 이 계속 exit 1.
+      if (isGitRepo(dir)) {
+        if (await clearStaleIndexLock(dir, this.shell()))
+          this.log(id, 'update', '죽은 .git/index.lock 을 정리했습니다', 'error')
+        await ensureUpstream(dir, this.shell())
+      }
       for (let i = 0; i < steps.length; i++) {
         const s = steps[i]
         this.progress({
@@ -191,9 +225,8 @@ export class AppManager {
           stepTotal: steps.length
         })
         this.log(id, 'update', `$ ${s.run}`)
-        const cwd = s.cwd ? join(dir, s.cwd) : dir
-        const code = await runStreaming(s.run, cwd, (line, level) => this.log(id, 'update', line, level), this.shell())
-        if (code !== 0) throw new Error(`업데이트 스텝 실패: ${s.run} (exit ${code})`)
+        const { code, reason } = await this.runStep(id, 'update', s, dir)
+        if (code !== 0) throw AppManager.stepError('업데이트', s, code, reason)
       }
       this.progress({ appId: id, phase: 'update', status: 'done', message: '업데이트 완료' })
     } catch (e) {

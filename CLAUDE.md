@@ -92,6 +92,13 @@ src/
   window" 에 워크스페이스를 만든다 → cmux 미실행 상태에서 위임하면 실패해 클립보드 폴백으로 빠진다.
   `openInCmux` 는 **`ensureCmuxRunning()`**(probe=`cmux list-workspaces`, 안 뜨면 `open -a cmux` 후
   소켓 응답까지 폴링)으로 먼저 앱을 깨운 뒤 위임한다. 로그 소음 줄이려 `CMUX_QUIET=1` 프리픽스.
+- **죽은 `.git/index.lock` → 그 repo 업데이트가 영구 실패**: index 를 쓰는 git(`git status` 등)을
+  SIGKILL 하거나 앱이 꺼지며 자식 git 이 죽으면 락이 남고, 이후 `git pull --ff-only` 가 손으로 지울
+  때까지 계속 exit 1. → `exec.ts` `runCapture` 는 타임아웃에 **SIGTERM 먼저**(git 이 스스로 락 정리),
+  3초 뒤에야 SIGKILL. 그래도 남은 락은 `git.ts` **`clearStaleIndexLock()`**이 update·fetchAndCompare
+  에서 치운다(1분 이상 묵었고 `lsof` 로 아무도 안 잡고 있는 락만 — 느린 git 은 건드리지 않음).
+- **스텝 실패는 원인 줄까지 보여줄 것**: `업데이트 스텝 실패: … (exit 1)` 만으로는 사용자가 아무것도
+  못 한다. `runStep()` 이 첫 에러 줄을 모아 메시지 뒤에 붙인다(위 index.lock 은 이게 없어서 오래 못 찾음).
 
 ## 관례
 
