@@ -5,6 +5,7 @@ import { AppManager } from './appManager'
 import { registerIpc, broadcast } from './ipc'
 import { loadSettings, ensureDirs } from './paths'
 import { syncLoginItems, ensureCmuxRunning } from './autostart'
+import { primeShellPath } from './exec'
 import type { LogLine, ProgressEvent } from '../shared/types'
 
 const { autoUpdater } = electronUpdater
@@ -69,6 +70,9 @@ function createWindow(): void {
 app.whenReady().then(() => {
   ensureDirs()
   app.setName('palace')
+
+  // 첫 스텝이 PATH 를 기다리지 않게 미리 데워둔다(대화형 셸 1회 = 수백 ms~수 초).
+  void primeShellPath(loadSettings().shell)
 
   appManager = new AppManager({
     getSettings: () => loadSettings(),

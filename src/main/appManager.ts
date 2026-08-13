@@ -269,7 +269,7 @@ export class AppManager {
     this.deps.emitState()
 
     const cwd = m.start.cwd ? join(dir, m.start.cwd) : dir
-    const child = spawnLongRunning(
+    const child = await spawnLongRunning(
       m.start.run,
       cwd,
       (line, level) => this.log(id, 'run', line, level),
