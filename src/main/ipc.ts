@@ -16,6 +16,14 @@ export function registerIpc(am: AppManager): void {
   h('palace:checkUpdate', (_e, id: string) => am.checkUpdate(id))
   h('palace:start', (_e, id: string) => am.start(id))
   h('palace:stop', (_e, id: string) => am.stop(id))
+  h('palace:setKeepAwake', async (_e, id: string, enabled: boolean) => {
+    const cur = loadSettings().keepAwake ?? {}
+    saveSettings({ keepAwake: { ...cur, [id]: enabled } })
+    // listApps 가 어서션까지 다시 맞춘다 — 토글이 다음 폴링을 기다리지 않고 바로 먹는다.
+    const apps = await am.listApps()
+    am.notifyState()
+    return apps
+  })
   h('palace:openInCmux', (_e, id: string) => am.openInCmux(id))
   h('palace:ensureAutostart', (_e, id: string) => am.ensureAutostart(id))
   h('palace:doctor', (_e, id: string) => am.doctor(id))

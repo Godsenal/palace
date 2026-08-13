@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { palace } from '../api'
-import type { AppView } from '../../../shared/types'
+import type { AppView, KeepAwakeView } from '../../../shared/types'
 import { DashboardEmbed } from './DashboardEmbed'
 import { LogsView } from './LogsView'
 import { Docs } from './Docs'
@@ -97,6 +97,11 @@ export function Detail({
               포트 <b>{m.dashboard.port}</b> {app.portOpen ? 'open' : 'closed'}
             </span>
           )}
+          {app.keepAwake?.enabled && (
+            <span className={`chip ${app.keepAwake.active ? 'ok' : 'warn'}`} title={KEEP_AWAKE_WHY}>
+              {app.keepAwake.active ? '☕ 슬립 차단 중' : `☕ 대기 (${idleReasonLabel(app.keepAwake.idleReason)})`}
+            </span>
+          )}
           {app.version && <span className="chip">v<b>{app.version}</b></span>}
           {app.git?.branch && (
             <span className="chip">
@@ -141,7 +146,9 @@ export function Detail({
         </button>
       </div>
 
-      {tab === 'overview' && <Overview app={app} onOpenDashboard={() => setTab('dashboard')} />}
+      {tab === 'overview' && (
+        <Overview app={app} onOpenDashboard={() => setTab('dashboard')} showToast={showToast} />
+      )}
       {tab === 'dashboard' && (
         <div className="pane flush" style={{ display: 'flex' }}>
           <DashboardEmbed app={app} onStart={doStart} />
@@ -229,10 +236,78 @@ export function Detail({
   }
 }
 
-function Overview({ app, onOpenDashboard }: { app: AppView; onOpenDashboard: () => void }): JSX.Element {
+const KEEP_AWAKE_WHY =
+  '잠든 맥은 tailnet 에서 통째로 사라져 폰에서 아예 붙지 못한다. 이 앱이 실행 중인 동안 시스템 슬립을 막는다.'
+
+function idleReasonLabel(r: KeepAwakeView['idleReason']): string {
+  if (r === 'not-running') return '앱 정지 중'
+  if (r === 'on-battery') return '배터리 전원'
+  return '꺼짐'
+}
+
+function KeepAwakeCard({
+  app,
+  showToast
+}: {
+  app: AppView
+  showToast: (m: string) => void
+}): JSX.Element {
+  const k = app.keepAwake!
+  const [busy, setBusy] = useState(false)
+
+  const toggle = async (enabled: boolean): Promise<void> => {
+    setBusy(true)
+    try {
+      await palace.setKeepAwake(app.manifest.id, enabled)
+    } catch (e) {
+      showToast(`⚠ ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <h3>항상 깨어있기</h3>
+      <label className="row" style={{ cursor: 'pointer', gap: 8 }}>
+        <input
+          type="checkbox"
+          checked={k.enabled}
+          disabled={busy}
+          onChange={(e) => toggle(e.target.checked)}
+        />
+        <span>이 앱이 실행 중인 동안 맥이 잠들지 않게</span>
+        <span className={`chip ${k.active ? 'ok' : ''}`} style={{ marginLeft: 'auto' }}>
+          {k.active ? '차단 중' : idleReasonLabel(k.idleReason)}
+        </span>
+      </label>
+      <div className="hint" style={{ marginTop: 8 }}>
+        {KEEP_AWAKE_WHY} 화면은 평소대로 꺼지고, 배터리로 돌 때는 잡지 않는다.
+        {k.idleReason === 'on-battery' && ' 지금은 배터리라 대기 중 — 전원을 꽂으면 바로 잡는다.'}
+      </div>
+      <div className="hint" style={{ marginTop: 6 }}>
+        palace 가 떠 있는 동안 유효하다. cmux-remote 는 자기 supervisor(run.sh)도 같은 어서션을
+        잡으므로, palace 를 꺼도 서버가 살아있는 한 맥은 깨어있다.
+      </div>
+    </div>
+  )
+}
+
+function Overview({
+  app,
+  onOpenDashboard,
+  showToast
+}: {
+  app: AppView
+  onOpenDashboard: () => void
+  showToast: (m: string) => void
+}): JSX.Element {
   const m = app.manifest
   return (
     <div className="pane">
+      {app.keepAwake && app.installState === 'installed' && (
+        <KeepAwakeCard app={app} showToast={showToast} />
+      )}
       {m.description && (
         <div className="card">
           <h3>소개</h3>

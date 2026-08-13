@@ -11,6 +11,8 @@
 - **설치** — `git clone` + 설치 스텝. 이미 `~/LTH` 등에 clone 돼 있으면 재clone 없이 **감지**.
 - **시작/정지** — `launchMode` 에 따라 palace 가 직접 프로세스로 띄우거나(process), cmux 터미널로 위임(cmux).
   누가 켰든 **대시보드 포트가 뜨면 실행중으로 표시**하고 임베드한다.
+- **항상 깨어있기** — 폰에서 붙는 도구(cmux-remote 등)가 실행 중인 동안 맥이 잠들지 않게 한다.
+  잠든 맥은 tailnet 에서 통째로 사라져 폰이 아예 못 붙기 때문. 화면은 평소대로 꺼지고, 배터리로 돌 땐 잡지 않는다.
 - **대시보드 임베드** — 실행 중이면 `<webview>` 로 각 앱의 로컬 대시보드(loops 8422, cmux-remote 8787 …)를 그대로 띄운다.
 - **업데이트** — `git fetch` 로 뒤처짐 감지 → `git pull`(+ 재설치). 허브 자체는 electron-updater.
 - **진단(Doctor)** — 전제 도구(bun/cmux/gh/tailscale …) 점검 + palace가 **직접 자동설치**(암호·GUI·로그인 필요한 3가지만 수동 표시).
@@ -59,6 +61,7 @@ npm version patch && git push && git push --tags   # → release 워크플로우
   "install": [{ "run": "bun install" }],
   "update": [{ "run": "git pull --ff-only" }],
   "start": { "run": "bun start" },
+  "keepAwake": true,                 // 실행 중엔 맥을 재우지 않는다(폰에서 붙는 도구용)
   "dashboard": { "url": "http://localhost:3000", "port": 3000 },
   "prerequisites": [{ "name": "bun", "check": "bun --version", "install": "curl -fsSL https://bun.sh/install | bash" }],
   "readme": "README.md",

@@ -8,6 +8,7 @@ import type {
   EnvEntry,
   EnvView,
   InstallState,
+  KeepAwakeView,
   LogLine,
   Manifest,
   OnboardingKey,
@@ -24,6 +25,7 @@ import { loadManifests, resolveDir } from './registry'
 import { fetchAndCompare, gitInfo, clone, toHttps, isGitRepo, ensureUpstream, clearStaleIndexLock } from './git'
 import { runCapture, runStreaming, spawnLongRunning, killGroup } from './exec'
 import { isPortOpen } from './health'
+import { isOnBatteryPower, syncKeepAwake } from './keepAwake'
 import { renderMarkdown } from './markdown'
 
 interface Managed {
@@ -96,7 +98,11 @@ export class AppManager {
 
   async listApps(): Promise<AppView[]> {
     const manifests = loadManifests()
-    return Promise.all(manifests.map((m) => this.buildView(m)))
+    const views = await Promise.all(manifests.map((m) => this.buildView(m)))
+    // 상태를 다시 셀 때마다 어서션도 맞춘다. 앱이 뜨고 지는 모든 경로(IPC·주기 폴링)가
+    // 여기를 지나므로, 슬립 차단은 별도 트리거 없이 실행 상태를 그대로 따라간다.
+    syncKeepAwake(views.filter((v) => v.keepAwake?.active).map((v) => v.manifest.id))
+    return views
   }
 
   async getApp(id: string): Promise<AppView | null> {
@@ -126,6 +132,7 @@ export class AppManager {
       manifest: m,
       installState,
       runState,
+      keepAwake: m.start || m.dashboard ? keepAwakeView(m, settings, runState) : undefined,
       dir: installed ? dir : undefined,
       portOpen,
       pid: managedAlive ? managed!.child.pid : undefined,
@@ -717,6 +724,22 @@ function firstMeaningfulLine(tail: string): string {
   const err = lines.find((l) => /error|EADDRINUSE|not found|failed|권한|실패/i.test(l))
   const pick = (err ?? lines[lines.length - 1] ?? '').trim()
   return pick.length > 140 ? `${pick.slice(0, 140)}…` : pick
+}
+
+/**
+ * 앱별 '항상 깨어있기' 상태. 사용자가 앱별로 정한 값이 우선, 없으면 매니페스트 기본값.
+ * 켜둔 것과 실제로 막고 있는 것은 다르다 — 앱이 정지 중이거나 배터리면 켜져 있어도 안 잡는다.
+ */
+function keepAwakeView(m: Manifest, settings: Settings, runState: RunState): KeepAwakeView {
+  const enabled = settings.keepAwake?.[m.id] ?? m.keepAwake ?? false
+  const idleReason = !enabled
+    ? 'off'
+    : runState !== 'running'
+      ? 'not-running'
+      : isOnBatteryPower()
+        ? 'on-battery'
+        : undefined
+  return { enabled, active: !idleReason, idleReason }
 }
 
 function mustManifest(id: string): Manifest {

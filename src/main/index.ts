@@ -6,6 +6,7 @@ import { registerIpc, broadcast } from './ipc'
 import { loadSettings, ensureDirs } from './paths'
 import { syncLoginItems, ensureCmuxRunning } from './autostart'
 import { primeShellPath } from './exec'
+import { watchPowerSource } from './keepAwake'
 import type { LogLine, ProgressEvent } from '../shared/types'
 
 const { autoUpdater } = electronUpdater
@@ -147,6 +148,9 @@ app.whenReady().then(() => {
       /* 릴리즈 피드 없거나 오프라인 — 무시 */
     })
   }
+
+  // 전원이 바뀌면 슬립 차단 여부가 뒤집힌다(배터리에선 안 잡는다) — 폴링을 기다리지 않고 반영.
+  watchPowerSource(() => schedulePush())
 
   // 주기적 헬스 폴링(포트 열림/닫힘, cmux 에서 켠 것 반영)
   const poll = setInterval(() => schedulePush(), 4000)

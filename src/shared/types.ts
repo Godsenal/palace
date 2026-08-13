@@ -63,6 +63,11 @@ export interface Manifest {
    * palace 가 실행 시(설정 autoWireTools) 또는 버튼으로 돌린다. 이미 배선돼 있으면 no-op 이어야 한다.
    */
   autostart?: Step
+  /**
+   * 이 앱이 실행 중인 동안 맥이 잠들지 않게 할지의 **기본값**(사용자가 앱별로 끌 수 있다).
+   * 폰에서 붙는 도구라면 켜둘 것 — 잠든 맥은 tailnet 에서 통째로 사라진다.
+   */
+  keepAwake?: boolean
   dashboard?: DashboardSpec
   /** 앱 디렉토리 기준 README 경로. */
   readme?: string
@@ -112,11 +117,24 @@ export interface GitInfo {
   updateAvailable?: boolean
 }
 
+/**
+ * '항상 깨어있기' 의 라이브 상태. 서버형 앱에만 붙는다.
+ * enabled 는 사용자 의사, active 는 지금 실제로 슬립을 막고 있는지 — 이 둘이 갈릴 수 있어서
+ * (정지됨/배터리) UI 가 이유까지 보여줄 수 있게 idleReason 을 같이 내린다.
+ */
+export interface KeepAwakeView {
+  enabled: boolean
+  active: boolean
+  idleReason?: 'off' | 'not-running' | 'on-battery'
+}
+
 /** 렌더러에 내려가는, 매니페스트 + 라이브 상태 합본. */
 export interface AppView {
   manifest: Manifest
   installState: InstallState
   runState: RunState
+  /** 서버형 앱에만 존재. */
+  keepAwake?: KeepAwakeView
   /** 설치 경로(설치됐다면). */
   dir?: string
   /** 헬스체크로 대시보드 포트가 열려있는지. */
@@ -179,6 +197,10 @@ export interface Settings {
    * 이미 다 깔린 컴퓨터도 palace 만 켜면 훅/supervisor 가 걸린다. 멱등이라 반복 안전.
    */
   autoWireTools?: boolean
+  /**
+   * 앱별 '항상 깨어있기' 사용자 설정(appId → on/off). 없는 앱은 매니페스트 keepAwake 가 기본값.
+   */
+  keepAwake?: Record<string, boolean>
 }
 
 // ---- 온보딩(새 컴퓨터 셋업 체크리스트) ----
@@ -234,6 +256,8 @@ export interface PalaceAPI {
   checkUpdate(id: string): Promise<AppView>
   start(id: string): Promise<AppView>
   stop(id: string): Promise<AppView>
+  /** 앱별 '항상 깨어있기' 토글. 어서션까지 즉시 재동기화한 앱 목록을 돌려준다. */
+  setKeepAwake(id: string, enabled: boolean): Promise<AppView[]>
   openInCmux(id: string): Promise<{ ok: boolean; message: string }>
   ensureAutostart(id: string): Promise<{ ok: boolean; message: string }>
   runDoctor(id: string): Promise<PrereqResult[]>

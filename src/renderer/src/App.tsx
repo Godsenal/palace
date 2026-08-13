@@ -181,7 +181,10 @@ function AppItem({ app, active, onClick }: { app: AppView; active: boolean; onCl
       <span className={`dot ${dotClass}`} style={dotClass === 'installed' && app.manifest.accent ? { background: app.manifest.accent } : undefined} />
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <div className="name">{app.manifest.name}</div>
-        <div className="mini">{status}</div>
+        <div className="mini" title={app.keepAwake?.active ? '슬립 차단 중 — 폰에서 언제든 붙는다' : undefined}>
+          {status}
+          {app.keepAwake?.active && ' · ☕'}
+        </div>
       </div>
     </div>
   )

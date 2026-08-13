@@ -16,6 +16,7 @@ const api: PalaceAPI = {
   checkUpdate: (id) => ipcRenderer.invoke('palace:checkUpdate', id),
   start: (id) => ipcRenderer.invoke('palace:start', id),
   stop: (id) => ipcRenderer.invoke('palace:stop', id),
+  setKeepAwake: (id, enabled) => ipcRenderer.invoke('palace:setKeepAwake', id, enabled),
   openInCmux: (id) => ipcRenderer.invoke('palace:openInCmux', id),
   ensureAutostart: (id) => ipcRenderer.invoke('palace:ensureAutostart', id),
   runDoctor: (id) => ipcRenderer.invoke('palace:doctor', id),

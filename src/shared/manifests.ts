@@ -79,6 +79,8 @@ export const BUILTIN_MANIFESTS: Manifest[] = [
     autostart: {
       run: 'grep -q "cmux-remote autostart" "${ZDOTDIR:-$HOME}/.zshrc" 2>/dev/null || CMUX_REMOTE_WIRE_ONLY=1 zsh scripts/install-autostart.sh'
     },
+    // 폰에서 붙는 도구 = 맥이 깨어 있어야 의미가 있다. 기본 켜짐(앱 카드에서 끌 수 있음).
+    keepAwake: true,
     dashboard: { url: 'http://localhost:8787', port: 8787 },
     readme: 'README.md',
     notes:
