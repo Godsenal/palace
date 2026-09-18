@@ -11,7 +11,7 @@ export function expandHome(p: string): string {
 }
 
 /** palace 설정/사용자 매니페스트가 사는 곳. */
-export const CONFIG_DIR = join(homedir(), '.palace')
+export const CONFIG_DIR = join(process.env.PALACE_OMP_HOME || join(homedir(), '.palace-omp'), 'catalog')
 export const USER_APPS_DIR = join(CONFIG_DIR, 'apps')
 export const SETTINGS_FILE = join(CONFIG_DIR, 'settings.json')
 
@@ -23,7 +23,9 @@ export function ensureDirs(): void {
 
 const DEFAULT_SETTINGS: Settings = {
   installRoot: join(homedir(), 'LTH'),
-  theme: 'dark'
+  theme: 'dark',
+  launchAtLogin: false,
+  autoWireTools: false
 }
 
 export function loadSettings(): Settings {

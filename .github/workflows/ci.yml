@@ -18,5 +18,6 @@ jobs:
       # Node 20 번들 npm 10.8.x 의 "Exit handler never called!" 버그 회피 → 최신 npm.
       - run: npm install -g npm@latest
       - run: npm ci --no-audit --no-fund
+      - run: npm test
       - run: npm run typecheck
       - run: npm run build

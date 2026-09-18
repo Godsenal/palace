@@ -1,3 +1,6 @@
+import type { AutomationAPI } from './automation'
+import type { WorkbenchServices, SetupAPI } from './workbench'
+
 // palace — 공유 타입. main / preload / renderer 가 이 계약을 공유한다.
 
 /** 앱을 어떻게 기동하는가. */
@@ -247,7 +250,9 @@ export interface ProgressEvent {
 }
 
 /** preload 가 노출하는 API 표면. window.palace */
-export interface PalaceAPI {
+export interface PalaceAPI extends WorkbenchServices {
+  automation: AutomationAPI
+  setup: SetupAPI
   listApps(): Promise<AppView[]>
   getApp(id: string): Promise<AppView | null>
   refresh(id?: string): Promise<AppView[]>

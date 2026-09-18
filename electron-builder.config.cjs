@@ -4,10 +4,13 @@ const signing = !!(process.env.CSC_LINK || process.env.PALACE_SIGN === '1')
 
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  appId: 'com.godsenal.palace',
-  productName: 'palace',
+  appId: 'com.godsenal.palace-omp',
+  productName: 'Palace OMP',
   directories: { output: 'dist', buildResources: 'resources' },
   files: ['out/**'],
+  asarUnpack: ['node_modules/node-pty/**'],
+  buildDependenciesFromSource: true,
+  extraResources: [{ from: 'engines/loops', to: 'engines/loops', filter: ['**/*', '!**/.git/**', '!test/**', '!loops/**', '!products/**', '!state/**', '!loops.env'] }],
   mac: {
     category: 'public.app-category.developer-tools',
     icon: 'resources/icon.icns',
@@ -24,7 +27,6 @@ module.exports = {
   dmg: {
     title: '${productName} ${version}'
   },
-  // releaseType 'release' = 태그 push 시 바로 게시(자동업데이트 즉시 반영).
-  // 검토 게이트를 원하면 'draft' 로 바꾸고 GitHub에서 수동 publish.
-  publish: { provider: 'github', owner: 'Godsenal', repo: 'palace', releaseType: 'release' }
+  // 별도 릴리즈 저장소를 연결하기 전에는 기존 Palace 업데이트를 설치하지 않는다.
+  publish: null
 }

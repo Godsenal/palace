@@ -7,7 +7,70 @@ function sub<T>(channel: string, cb: (payload: T) => void): () => void {
   return () => ipcRenderer.removeListener(channel, listener)
 }
 
+const workbench = (namespace: string, method: string, args: unknown[] = []): Promise<any> =>
+  ipcRenderer.invoke('palace:workbench', `${namespace}.${method}`, args)
+
 const api: PalaceAPI = {
+  automation: {
+    snapshot: () => ipcRenderer.invoke('palace:automation', 'snapshot', []),
+    saveLoop: (loop) => ipcRenderer.invoke('palace:automation', 'saveLoop', [loop]),
+    deleteLoop: (id) => ipcRenderer.invoke('palace:automation', 'deleteLoop', [id]),
+    approveLoop: (id) => ipcRenderer.invoke('palace:automation', 'approveLoop', [id]),
+    runLoop: (id) => ipcRenderer.invoke('palace:automation', 'runLoop', [id]),
+    cancelRun: (id) => ipcRenderer.invoke('palace:automation', 'cancelRun', [id]),
+    runDetail: (id, after) => ipcRenderer.invoke('palace:automation', 'runDetail', [id, after ?? 0]),
+    saveSettings: (settings) => ipcRenderer.invoke('palace:automation', 'saveSettings', [settings]),
+    saveOmp: (omp) => ipcRenderer.invoke('palace:automation', 'saveOmp', [omp]),
+    importOmp: () => ipcRenderer.invoke('palace:automation', 'importOmp', []),
+    sync: (direction) => ipcRenderer.invoke('palace:automation', 'sync', [direction]),
+    webhook: (id) => ipcRenderer.invoke('palace:automation', 'webhook', [id]),
+    service: (action) => ipcRenderer.invoke('palace:automationService', action)
+  },
+  ide: {
+    snapshot: () => workbench('ide', 'snapshot'),
+    models: () => workbench('ide', 'models'),
+    createWorkspace: (input) => workbench('ide', 'createWorkspace', [input]),
+    archiveWorkspace: (id) => workbench('ide', 'archiveWorkspace', [id]),
+    createSession: (input) => workbench('ide', 'createSession', [input]),
+    detail: (id, after) => workbench('ide', 'detail', [id, after ?? 0]),
+    prompt: (id, text, mode) => workbench('ide', 'prompt', [id, text, mode ?? 'prompt']),
+    respond: (id, questionId, response) => workbench('ide', 'respond', [id, questionId, response]),
+    abort: (id) => workbench('ide', 'abort', [id]),
+    resume: (id) => workbench('ide', 'resume', [id]),
+    closeSession: (id) => workbench('ide', 'closeSession', [id]),
+    command: (id, command, args) => workbench('ide', 'command', [id, command, args ?? {}]),
+    changes: (id) => workbench('ide', 'changes', [id]),
+    readFile: (id, path) => workbench('ide', 'readFile', [id, path]),
+    saveProfiles: (profiles) => workbench('ide', 'saveProfiles', [profiles]),
+    heartbeat: (id, value) => workbench('ide', 'heartbeat', [id, value])
+  },
+  skills: {
+    search: (query) => workbench('skills', 'search', [query]),
+    preview: (source, id) => workbench('skills', 'preview', id ? [source, id] : [source]),
+    list: (project) => workbench('skills', 'list', [project]),
+    install: (project, source, id, revision) => workbench('skills', 'install', [project, source, id, revision]),
+    update: (project, id, revision) => workbench('skills', 'update', [project, id, revision]),
+    remove: (project, id) => workbench('skills', 'remove', [project, id])
+  },
+  loops: {
+    status: () => workbench('loops', 'status'),
+    start: () => workbench('loops', 'start'),
+    stop: () => workbench('loops', 'stop'),
+    request: (path, method, body) => workbench('loops', 'request', [path, method ?? 'GET', body ?? null])
+  },
+  remote: {
+    status: () => workbench('remote', 'status'),
+    launch: (input) => workbench('remote', 'launch', [input]),
+    link: (instanceId, generation, access) => workbench('remote', 'link', [instanceId, generation, access]),
+    focus: (workspaceRef) => workbench('remote', 'focus', [workspaceRef])
+  },
+  setup: {
+    status: () => workbench('setup', 'status'),
+    repositories: () => workbench('setup', 'repositories'),
+    install: (tool) => workbench('setup', 'install', [tool]),
+    login: (tool) => workbench('setup', 'login', [tool]),
+    chooseProject: () => workbench('setup', 'chooseProject')
+  },
   listApps: () => ipcRenderer.invoke('palace:listApps'),
   getApp: (id) => ipcRenderer.invoke('palace:getApp', id),
   refresh: (id) => ipcRenderer.invoke('palace:refresh', id),

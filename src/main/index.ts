@@ -8,8 +8,11 @@ import { syncLoginItems, ensureCmuxRunning } from './autostart'
 import { primeShellPath } from './exec'
 import { watchPowerSource } from './keepAwake'
 import type { LogLine, ProgressEvent } from '../shared/types'
+import { registerAutomationIpc } from './automationHost'
 
 const { autoUpdater } = electronUpdater
+const updateFeed = process.env.PALACE_OMP_UPDATE_URL
+if (updateFeed) autoUpdater.setFeedURL({ provider: 'generic', url: updateFeed })
 
 let mainWindow: BrowserWindow | null = null
 let appManager: AppManager | null = null
@@ -39,7 +42,7 @@ function createWindow(): void {
     show: false,
     titleBarStyle: 'hiddenInset',
     backgroundColor: '#0f1115',
-    title: 'palace',
+    title: 'Palace OMP',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -70,7 +73,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   ensureDirs()
-  app.setName('palace')
+  app.setName('Palace OMP')
 
   // 첫 스텝이 PATH 를 기다리지 않게 미리 데워둔다(대화형 셸 1회 = 수백 ms~수 초).
   void primeShellPath(loadSettings().shell)
@@ -83,9 +86,11 @@ app.whenReady().then(() => {
   })
 
   registerIpc(appManager)
+  registerAutomationIpc(() => mainWindow)
 
   // 허브 자체 업데이트 체크(패키징 후 GitHub Releases 기준). 개발중엔 조용히 실패.
   ipcMain.handle('palace:checkHubUpdate', async () => {
+    if (!updateFeed) return { available: false, error: 'Palace OMP 전용 업데이트 피드가 연결되지 않았습니다.' }
     try {
       autoUpdater.autoDownload = false
       const r = await autoUpdater.checkForUpdates()
@@ -107,6 +112,7 @@ app.whenReady().then(() => {
 
   // "지금 업데이트": 새 버전을 다운로드(완료 시 resolve). 없으면 message 로 알림.
   ipcMain.handle('palace:downloadHubUpdate', async () => {
+    if (!updateFeed) return { ok: false, error: 'Palace OMP 전용 업데이트 피드를 먼저 연결하세요.' }
     try {
       autoUpdater.autoDownload = false
       const r = await autoUpdater.checkForUpdates()
@@ -121,6 +127,7 @@ app.whenReady().then(() => {
 
   // 다운로드된 업데이트 적용 + 재시작.
   ipcMain.handle('palace:installHubUpdate', () => {
+    if (!updateFeed) throw new Error('업데이트 피드가 연결되지 않았습니다.')
     setImmediate(() => autoUpdater.quitAndInstall())
   })
 
@@ -143,7 +150,7 @@ app.whenReady().then(() => {
 
   // 허브 자체 자동업데이트: 패키징 빌드에서만 시작 시 확인 → 있으면 다운로드+알림.
   // (macOS 무음 적용은 서명 필요 — 서명 전엔 확인/알림까지 동작)
-  if (app.isPackaged) {
+  if (app.isPackaged && updateFeed) {
     autoUpdater.checkForUpdatesAndNotify().catch(() => {
       /* 릴리즈 피드 없거나 오프라인 — 무시 */
     })

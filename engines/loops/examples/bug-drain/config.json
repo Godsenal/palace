@@ -1,0 +1,33 @@
+{
+  "id": "myapp-bugs",
+  "name": "MyApp — Bug Triage & Fix",
+  "emoji": "🐞",
+  "repo": "/absolute/path/to/your/repo",
+  "baseRef": "origin/main",
+  "prBase": "main",
+  "branchPrefix": "loop-myapp-bugs",
+  "orchestratorWorktree": "/absolute/path/to/worktrees/loop-myapp-bugs",
+  "worktreePrefix": "/absolute/path/to/worktrees/loop-myapp-bugs",
+  "linearProjectId": "SHARED-LINEAR-PROJECT-ID",
+  "linearLabel": "Bug",
+  "delivery": "pr",
+  "verify": true,
+  "maxWorkers": 3,
+  "backlogTarget": 3,
+  "schedule": {
+    "startAt": null,
+    "intervalSec": 120
+  },
+  "drain": {
+    "discoverySec": 600
+  },
+  "on": {
+    "linearNew": true,
+    "ciFailure": true,
+    "prReview": true
+  },
+  "enabled": false,
+  "retro": {
+    "everyCycles": 8
+  }
+}

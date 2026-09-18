@@ -1,0 +1,23 @@
+{
+  "id": "deadcode",
+  "name": "Dead Code (example)",
+  "emoji": "🧹",
+  "repo": "<ABS_PATH_TO_YOUR_REPO>",
+  "baseRef": "origin/develop",
+  "prBase": "develop",
+  "branchPrefix": "loop-deadcode",
+  "orchestratorWorktree": "<WORKTREE_BASE>/loop-deadcode",
+  "worktreePrefix": "<WORKTREE_BASE>/loop-deadcode",
+  "linearProjectId": "<LINEAR_PROJECT_ID>",
+  "linearProjectUrl": "<LINEAR_PROJECT_URL>",
+  "maxWorkers": 2,
+  "backlogTarget": 5,
+  "schedule": { "startAt": null, "intervalSec": 10800 },
+  "enabled": false,
+  "delivery": "pr",
+  "verify": false,
+  "validate": false,
+  "budget": { "dailyUsd": null },
+  "on": { "ciFailure": false, "prReview": false, "linearNew": false },
+  "retro": { "everyCycles": 0 }
+}

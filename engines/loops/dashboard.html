@@ -1,0 +1,642 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Loops</title>
+<meta name="theme-color" content="#0d131c">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Loops">
+<link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="vendor/oat.min.css">
+<style>
+/* ===== Loops — orchestration console · Oat UI 위에 telemetry 팔레트 매핑 ===== */
+:root{
+ color-scheme:dark;
+ --sans:'Space Grotesk',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+ --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+ --bg:#0a0e13;--panel:#0d131c;--card:#111a25;--card-hover:#16212e;
+ --border:#202c3b;--border-strong:#32475d;
+ --fg:#dbe4ef;--muted2:#5a6b7e;
+ --signal:#2fd0bb;--signal-hover:#46dccb;--signal-fg:#04241f;
+ --success:#41c47a;--warning:#e0a83a;--danger:#e8635f;--info:#5f9bef;
+ --danger-bg:#241722;
+ --console:#070b10;--console-fg:#aec2cf;
+ --radius:9px;--radius-sm:6px;--radius-lg:14px;--shadow:0 1px 2px rgba(0,0,0,.28);
+ /* → Oat 변수 매핑 (Oat 컴포넌트가 telemetry 팔레트를 상속) */
+ --background:var(--bg);--foreground:var(--fg);--card-foreground:var(--fg);
+ --primary:var(--signal);--primary-foreground:var(--signal-fg);
+ --secondary:var(--card-hover);--secondary-foreground:var(--fg);
+ --muted:var(--card-hover);--muted-foreground:#8091a5;
+ --faint:var(--panel);--faint-foreground:var(--muted2);--accent:var(--card-hover);
+ --danger-foreground:#0a0e13;--success-foreground:#04241f;--warning-foreground:#0a0e13;
+ --input:var(--border);--ring:var(--signal);
+ --font-sans:var(--sans);--font-mono:var(--mono);
+ --radius-small:5px;--radius-medium:var(--radius);--radius-large:var(--radius-lg);
+}
+[data-theme=light]{
+ color-scheme:light;
+ --bg:#eef2f6;--panel:#ffffff;--card:#ffffff;--card-hover:#f4f7fa;
+ --border:#e2e8f0;--border-strong:#c5d2df;
+ --fg:#101b27;--muted2:#8496a8;
+ --signal:#0f9e8d;--signal-hover:#0c8577;--signal-fg:#ffffff;
+ --success:#1f9d54;--warning:#9c6712;--danger:#cf4a45;--info:#3573d6;
+ --danger-bg:#fceef0;
+ --console:#0e141d;--console-fg:#aec2cf;
+ --shadow:0 1px 2px rgba(16,32,48,.06),0 2px 6px rgba(16,32,48,.05);
+ --muted-foreground:#5a6b7d;--danger-foreground:#ffffff;--success-foreground:#ffffff;--warning-foreground:#ffffff;
+}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.55 var(--sans);display:flex;height:100vh;overflow:hidden;-webkit-font-smoothing:antialiased}
+/* machine data = mono telemetry */
+.counts b,.card .l>b,.loopitem .m,.t,#attnsum,.gauge{font-family:var(--mono);font-variant-numeric:tabular-nums}
+::-webkit-scrollbar{width:11px;height:11px}::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:7px;border:3px solid transparent;background-clip:padding-box}::-webkit-scrollbar-thumb:hover{background:var(--muted2)}::-webkit-scrollbar-track{background:transparent}
+/* ===== buttons — Oat 위에 앱 클래스 브릿지(.p 프라이머리 / bare·기타 조용 / .d 위험 / .ghost) ===== */
+button{background:var(--secondary);color:var(--secondary-foreground);border:1px solid var(--border);border-radius:var(--radius-sm);padding:5px 11px;cursor:pointer;font:600 13px/1.4 var(--sans);transition:background .12s,border-color .12s,opacity .12s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;box-shadow:none;text-transform:none;letter-spacing:0}
+button:hover{background:var(--card-hover);border-color:var(--border-strong)}
+button:active{opacity:.85}
+button:focus-visible{outline:none;box-shadow:0 0 0 2px var(--bg),0 0 0 4px color-mix(in srgb,var(--signal) 60%,transparent)}
+button.p{background:var(--signal);border-color:transparent;color:var(--signal-fg)}
+button.p:hover{background:var(--signal-hover);border-color:transparent}
+button.d{background:transparent;border-color:color-mix(in srgb,var(--danger) 42%,var(--border));color:var(--danger)}
+button.d:hover{background:var(--danger-bg);border-color:var(--danger)}
+button.ghost{background:transparent;border-color:transparent;padding:4px 8px;color:var(--fg)}
+button.ghost:hover{background:var(--card-hover);border-color:transparent}
+button.small{padding:3px 8px;font-size:12px}
+button.gtx{min-width:34px;justify-content:center;padding:5px 8px;font-size:13px}
+/* ===== inputs — Oat가 스타일; 앱 전용 사이징만 유지 (체크박스/라디오/스위치는 Oat native 크기) ===== */
+input:not([type=checkbox]):not([type=radio]){width:90px}
+textarea{width:100%;font:12.5px/1.55 var(--mono);min-height:160px;resize:vertical}
+/* ===== bits ===== */
+.muted{color:var(--muted-foreground)}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:7px;vertical-align:middle;background:var(--muted2)}
+.on{background:var(--success);animation:led 2.4s ease-in-out infinite}
+.off{background:var(--muted2)}
+.pause{background:var(--warning)}
+@keyframes led{0%,62%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--success) 45%,transparent)}31%{box-shadow:0 0 0 5px color-mix(in srgb,var(--success) 0%,transparent)}}
+@media (prefers-reduced-motion:reduce){.on{animation:none}.spin{animation:none}}
+/* Oat badge 튜닝: telemetry mono + info variant(Oat 미제공) + flex row에서 안 눌리게 */
+.badge{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:.2px;flex:none;padding:2px 9px}
+.badge[data-variant=info]{color:var(--info);background:color-mix(in srgb,var(--info) 20%,transparent)}
+[data-theme=light] .badge[data-variant=info]{background:color-mix(in srgb,var(--info) 10%,transparent)}
+/* ===== sidebar = fleet roster ===== */
+#side{width:256px;border-right:1px solid var(--border);background:var(--panel);overflow-y:auto;overflow-x:hidden;flex-shrink:0;padding:14px 11px;display:flex;flex-direction:column}
+/* Oat 툴팁(title→data-tooltip ::after)이 긴 텍스트를 nowrap absolute로 렌더 → 숨은 pseudo가 가로 스크롤폭을 늘림. 폭 캡 + wrap으로 phantom 오버플로우 방지 */
+[data-tooltip]::after{max-width:min(320px,80vw);white-space:normal;line-height:1.4;text-align:left}
+#side h2{font:700 14px/1 var(--sans);color:var(--fg);letter-spacing:.3px;margin:4px 4px;text-transform:none}
+#attnsum{margin:0 4px 10px;font-size:12px}#attnsum .attn{color:var(--danger);font-weight:600;cursor:pointer}#attnsum .clean{color:var(--muted2)}
+#connlost:not(:empty){margin:0 4px 10px}#connlost .cl{display:block;background:var(--danger-bg);color:var(--danger);border:1px solid color-mix(in srgb,var(--danger) 42%,transparent);border-radius:var(--radius-sm);padding:6px 9px;font:600 12px/1.4 var(--mono);font-variant-numeric:tabular-nums}
+.loopitem{padding:10px 11px;border-radius:var(--radius);cursor:pointer;margin-bottom:4px;border:1px solid transparent;position:relative;transition:background .12s,border-color .12s}
+.loopitem:hover{background:var(--card-hover)}
+.loopitem.sel{background:var(--card-hover);border-color:var(--border)}
+.loopitem.sel::before{content:"";position:absolute;left:-1px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--signal)}
+.loopitem .n{font:600 13.5px/1.25 var(--sans);letter-spacing:-.1px}
+.loopitem .m{font-size:11px;color:var(--muted-foreground);margin-top:3px}
+/* product 그룹 헤더 — 콘솔 섹션 라벨 톤(mono·uppercase). 🏷n = 오늘 triage 분류 건수(title=최근 라우팅). */
+.prodhead{display:flex;align-items:center;gap:6px;margin:12px 2px 5px;padding:0 5px;font:600 10.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted-foreground)}
+#looplist .prodhead:first-child{margin-top:2px}
+.prodhead .pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prodhead a{color:var(--muted-foreground);text-decoration:none}
+.prodhead a:hover{color:var(--foreground)}
+.prodhead .tt{margin-left:auto;cursor:default;font-variant-numeric:tabular-nums}
+.prodhead .pg{background:none;border:0;padding:0 2px;cursor:pointer;font-size:11px;opacity:.55;line-height:1}
+.prodhead .pg:hover{opacity:1}
+.prodhead .tt+ .pg{margin-left:4px}
+.prodhead .pn+ a+ .pg,.prodhead .pn+ .pg{margin-left:auto}
+/* ===== main ===== */
+#main{flex:1;overflow-y:auto;overflow-x:hidden;padding:22px 28px 48px}
+.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sec{margin:24px 0 10px;color:var(--muted2);font:700 11px/1 var(--sans);text-transform:uppercase;letter-spacing:1.2px}
+h1{letter-spacing:-.4px;font-weight:700}
+/* ===== capacity gauge (signature) ===== */
+.gauge{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:600;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.6px}
+.counts .gauge{margin-left:auto;align-self:center}
+.gauge .bars{display:inline-flex;gap:3px}
+.gauge .seg{width:15px;height:8px;border-radius:2px;background:var(--border-strong)}
+.gauge .seg.fill{background:var(--warning)}
+.gauge.full .seg.fill{background:var(--danger)}
+/* ===== cards / issues ===== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;margin-bottom:6px;display:flex;gap:12px;align-items:center;justify-content:space-between;box-shadow:var(--shadow);transition:border-color .12s,background .12s}
+.card:hover{border-color:var(--border-strong)}
+.card .l{display:flex;gap:9px;align-items:center;min-width:0;flex:1}
+.card .l>b{font-size:13px;letter-spacing:.2px;color:var(--fg);flex:none}
+.ititle{flex:1 1 auto;min-width:90px;white-space:normal;overflow-wrap:anywhere;line-height:1.35;font-size:12.5px}
+.card .r,.card>.row{flex:none;gap:5px;justify-content:flex-end}
+.card .row button{padding:3px 8px;font-size:12px}
+.card .row button:not(.p):not(.d){color:var(--muted-foreground);background:transparent;border-color:transparent}
+.card .row button:not(.p):not(.d):hover{color:var(--fg);background:var(--card-hover)}
+.card a{color:var(--signal);text-decoration:none;font-weight:600;font-size:12px}.card a:hover{text-decoration:underline}
+.live{color:var(--success)}.dead{color:var(--muted2)}.dead.stuck{color:var(--danger)}.t{color:var(--muted2);font-size:11px}
+/* ===== feed ===== */
+.feedline{padding:7px 12px;border-left:2px solid var(--border);margin-bottom:3px;font-size:13px;color:var(--fg)}
+.fe-cycle{border-color:var(--warning)}.fe-worker{border-color:var(--info)}
+/* ===== stat tiles ===== */
+.counts{display:flex;gap:9px;margin-top:12px}
+.counts>span{display:inline-flex;flex-direction:column;gap:6px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:10px 15px;min-width:88px;box-shadow:var(--shadow)}
+.counts b{font-size:23px;font-weight:600;letter-spacing:-.5px;line-height:1}
+/* ===== modal ===== */
+/* 모달 = Oat 네이티브 <dialog>. 닫힘은 UA display:none 유지, 열림([open])에만 flex */
+.lmodal{width:min(96vw,980px);max-width:96vw;max-height:88vh;padding:0;background:var(--panel)}
+.lmodal[open]{display:flex;flex-direction:column}
+.lmodal>.hd{padding:14px 17px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font:600 15px/1 var(--sans);flex:none}
+.lmodal>pre{flex:1;min-height:0;overflow:auto;margin:0;padding:15px;font:12px/1.5 var(--mono);white-space:pre-wrap;color:var(--console-fg);background:var(--console)}
+.lmodal>.body{padding:17px 19px;overflow:auto;flex:1;min-height:0}
+#smodal[open]{height:88vh}
+.fld{display:flex;gap:10px;align-items:center;margin-bottom:9px}.fld label{width:130px;color:var(--muted-foreground);font-size:13px;flex-shrink:0}.fld input{width:auto;flex:1}
+/* ===== misc ===== */
+.spin{display:inline-block;animation:spin 1.4s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+/* ===== 모바일 반응형 — 사이드바를 오프캔버스 드로어로, 상단 탑바 + 안전영역 ===== */
+#mtop,#backdrop{display:none}
+@media (max-width:820px){
+ body{height:100dvh}
+ #mtop{display:flex;align-items:center;gap:6px;position:fixed;top:0;left:0;right:0;z-index:50;
+   padding:0 10px;padding-top:env(safe-area-inset-top);height:calc(52px + env(safe-area-inset-top));
+   background:var(--panel);border-bottom:1px solid var(--border)}
+ #mtop h2{font:700 15px/1 var(--sans);margin:0;letter-spacing:.3px}
+ #mtop .sp{flex:1}
+ #mtopattn:not(:empty){color:var(--danger);font:600 12px/1 var(--mono);cursor:pointer;padding:6px 8px}
+ #hamb{font-size:17px;padding:7px 10px}
+ #side{position:fixed;top:0;left:0;bottom:0;z-index:70;width:min(86vw,320px);
+   transform:translateX(-100%);transition:transform .22s ease;box-shadow:0 0 40px rgba(0,0,0,.5);
+   padding-top:calc(14px + env(safe-area-inset-top));padding-bottom:calc(14px + env(safe-area-inset-bottom))}
+ body.nav-open #side{transform:none}
+ #backdrop{display:block;position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .22s}
+ body.nav-open #backdrop{opacity:1;pointer-events:auto}
+ #main{width:100%;padding:calc(66px + env(safe-area-inset-top)) 14px calc(40px + env(safe-area-inset-bottom))}
+ #main h1{font-size:22px}
+ /* 터치 타깃 확대 */
+ button{padding:8px 13px}
+ button.small{padding:6px 10px}
+ button.gtx{min-width:42px;padding:8px 10px}
+ button.ghost{padding:8px 10px}
+ .card .row button,.card .row button:not(.p):not(.d){padding:7px 11px;font-size:13px}
+ /* 좁은 폭에서 카드가 세로로 접히도록 */
+ .card{flex-wrap:wrap;gap:8px;padding:11px 13px}
+ .card .l{flex:1 1 100%}
+ .card .r,.card>.row{width:100%;justify-content:flex-start;flex-wrap:wrap}
+ .counts{flex-wrap:wrap}.counts>span{flex:1 1 calc(50% - 9px);min-width:0}
+ .counts .gauge{margin-left:0}
+ /* 필드/입력 = 세로 스택, 풀폭 */
+ .fld{flex-direction:column;align-items:stretch;gap:4px}.fld label{width:auto}.fld input{width:100%}
+ input:not([type=checkbox]):not([type=radio]){width:100%}
+ .row input{flex:1 1 auto}
+ /* 모달 = 전체화면(폰) + 안전영역(노치·홈바) */
+ .lmodal{width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0}
+ #smodal[open]{height:100dvh}
+ .lmodal>.hd{padding-top:calc(14px + env(safe-area-inset-top));padding-left:calc(17px + env(safe-area-inset-left));padding-right:calc(17px + env(safe-area-inset-right))}
+ .lmodal>.body{padding-left:calc(19px + env(safe-area-inset-left));padding-right:calc(19px + env(safe-area-inset-right));padding-bottom:calc(24px + env(safe-area-inset-bottom))}
+ .lmodal>pre{padding-left:calc(15px + env(safe-area-inset-left));padding-right:calc(15px + env(safe-area-inset-right));padding-bottom:calc(15px + env(safe-area-inset-bottom))}
+ /* ⋯ 드롭다운(Oat popover)이 좁은 화면에서 좌상단에 붙어 잘리는 문제 → 하단 시트로 고정 */
+ menu[popover]:popover-open{position:fixed!important;left:8px!important;right:8px!important;top:auto!important;bottom:calc(8px + env(safe-area-inset-bottom))!important;
+   width:auto!important;max-width:none!important;min-width:0!important;margin:0!important;max-height:70vh!important;overflow:auto!important}
+ menu[popover] button{width:100%;justify-content:flex-start;padding:11px 12px;font-size:14px}
+}
+</style></head><body>
+<div id="mtop"><button id="hamb" class="ghost" aria-label="메뉴 열기" onclick="toggleNav()">☰</button><h2>⟳ Loops</h2><span class="sp"></span><span id="mtopattn" onclick="closeNav();selectAttention()"></span><button class="ghost" aria-label="원격·알림 설정" title="원격·알림" onclick="closeNav();openR()" style="font-size:17px">🔔</button></div>
+<div id="backdrop" onclick="closeNav()"></div>
+<div id="side"><div class="row" style="justify-content:space-between;margin-bottom:8px"><h2>⟳ Loops</h2><button class="ghost" id="themebtn" title="라이트/다크 전환" aria-label="라이트/다크 전환" onclick="toggleTheme()">🌙</button></div>
+<div style="display:flex;gap:6px;margin-bottom:12px"><button class="p" style="flex:1;justify-content:center" onclick="openProductNew()">+ 새 제품</button><button class="p" style="flex:1;justify-content:center" onclick="openCreate()">+ 새 loop</button></div><div id="connlost"></div><div id="attnsum"></div><div id="looplist"></div>
+<div class="sec">디스패처(전역)</div><div id="gctl" class="row"></div></div>
+<div id="main"></div>
+
+<dialog id="smodal" class="lmodal" closedby="any"><div class="hd"><b id="stitle"></b><button aria-label="닫기" onclick="closeS()">✕</button></div><pre id="sbody"></pre></dialog>
+<dialog id="cmodal" class="lmodal" closedby="any"><div class="hd"><b>새 loop 만들기</b><button aria-label="닫기" onclick="closeC()">✕</button></div><div class="body">
+ <div class="sec">🤖 AI로 만들기 (추천)</div>
+ <textarea id="c_desc" aria-label="AI 루프 생성 프롬프트" placeholder="예: 웹뷰 리팩토링 루프 만들어줘 — 거대 컴포넌트 분리하고 중복 로직 정리"></textarea>
+ <div class="row" style="margin:8px 0 16px"><button class="p" onclick="buildLoop()">🤖 OMP로 생성</button> <span class="muted">탭에서 몇 가지 선택지에 답하면 mission·Linear·설정을 구성합니다. \"다 맡김\"도 가능합니다.</span></div>
+ <div class="fld" style="margin-bottom:12px"><label for="c_prod">제품</label><select id="c_prod" style="width:auto"></select> <input id="c_label" placeholder="담당 라벨 (예: Bug)" style="width:150px"> <span class="muted" style="font-size:11px">제품 하위 루프면 repo·Linear·OMP 설정을 제품에서 상속합니다.</span></div>
+ <div class="sec">또는 직접 입력</div>
+ <div class="fld"><label for="c_id">id</label><input id="c_id" placeholder="dead-code"></div>
+ <div class="fld"><label for="c_name">이름</label><input id="c_name" placeholder="Dead Code 정리"></div>
+ <div class="fld"><label for="c_emoji">emoji</label><input id="c_emoji" placeholder="🧹"></div>
+ <div class="fld"><label for="c_repo">프로젝트</label><select id="c_repo"><option value="">등록된 프로젝트를 선택하세요</option></select></div>
+ <div class="fld"><label for="c_pid">Linear projectId</label><input id="c_pid" placeholder="UUID (Linear 프로젝트)"></div>
+ <div class="fld"><label for="c_iv">인터벌(분)</label><input id="c_iv" value="120"></div>
+ <div class="sec">mission (메인 프롬프트 — 무슨 일을 어떻게 찾는가)</div>
+ <textarea id="c_mission" aria-label="mission (메인 프롬프트)" placeholder="이 루프가 발굴할 작업과 방법을 적으세요."></textarea>
+ <div class="row" style="margin-top:10px"><button class="p" onclick="createLoop()">생성</button> <span class="muted">생성 후 off — 사이드바에서 켜세요.</span></div>
+</div></dialog>
+<dialog id="gmodal" class="lmodal" closedby="any"><div class="hd"><b id="gtitle"></b><button aria-label="닫기" onclick="closeG()">✕</button></div><div class="body">
+ <div id="gctx" style="background:var(--card);border:1px solid var(--border);border-left:3px solid var(--warning);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:13px;line-height:1.5"></div>
+ <p class="muted" style="margin:0 0 8px">위 내용을 보고 <b>결정</b>을 적으세요. 워커가 이 지침을 최우선으로 따라 구현합니다 (이슈 본문의 human-gate는 해제됨). 보류/취소하려면 그렇게 적으면 됩니다.</p>
+ <textarea id="g_decision" aria-label="결정 내용" style="width:100%;height:120px" placeholder="예: 매물종류 화이트리스트는 아파트·오피스텔·원룸만. server sitemap spec이 실제 발행하는 조합만 링크할 것.&#10;또는: 이 BE 작업(ProptierDanji.nearbyPreschools)은 지금 보류 — 진행하지 말 것."></textarea>
+ <div class="row" style="margin-top:10px"><button class="p" onclick="submitGate()">승인하고 워커 진행 ▶</button> <span class="muted">결정이 기록되고 즉시 워커 탭이 뜹니다.</span></div>
+</div></dialog>
+<dialog id="omodal" class="lmodal" closedby="any"><div class="hd"><b id="otitle">설정</b><span style="flex:1"></span><span id="oflash" class="live" style="margin-right:12px;font-size:12px"></span><button aria-label="닫기" onclick="closeO()">✕</button></div><div class="body">
+ <div class="sec">⏱ 스케줄</div>
+ <div class="row"><span class="muted">시작</span> <input id="startAt" type="time" aria-label="스케줄 시작 시각"> <span class="muted">인터벌</span> <input id="ivMin" type="number" min="1" style="width:80px" aria-label="스케줄 인터벌(분)"> 분 <button class="p" onclick="setSched()">적용</button> <span id="schedinfo" class="muted"></span></div>
+ <div class="sec">🧭 vision <span class="muted" style="font-size:11px;font-weight:400">제품 방향(타겟 유저·북극성·non-goals) — 사람 소유, 발굴·검증·retro의 정렬 기준으로 주입 (제안형 루프용, 비우면 미주입)</span> <button class="p" onclick="saveVision()" style="float:right">저장</button></div>
+ <textarea id="visionbox" aria-label="vision (제품 방향)" style="height:100px" placeholder="(선택) 타겟 유저 · 북극성 지표 · 핵심 자산 · non-goals — 제안이 이 방향에 안 맞으면 발굴/검증에서 걸러집니다."></textarea>
+ <div class="sec">📝 mission (메인 프롬프트) <button class="p" onclick="saveMission()" style="float:right">저장 ⌘S</button></div>
+ <textarea id="missionbox" aria-label="mission (메인 프롬프트)" style="height:200px"></textarea>
+ <div class="sec">🧠 learnings <span class="muted" style="font-size:11px;font-weight:400">retro가 성과 데이터에서 추출한 교훈 — 매 run 프롬프트에 주입 (mission은 불변)</span> <span style="float:right"><button onclick="runRetro()" title="지금 성과 분석을 돌려 learnings.md 갱신 (config retro.everyCycles로 자동 주기 설정)">🧠 retro 실행</button> <button class="p" onclick="saveLearnings()">저장</button></span></div>
+ <textarea id="learningsbox" aria-label="learnings (retro 교훈)" style="height:120px" placeholder="(아직 교훈 없음 — retro가 채우거나 직접 적으세요. 1줄=교훈 1개+근거, 최대 15줄)"></textarea>
+ <div class="sec">⚙️ config <button class="p" onclick="saveConfig()" style="float:right">저장</button></div>
+ <div id="cfgform"></div>
+ <details style="margin-top:10px"><summary class="muted" style="cursor:pointer;font-size:12px">고급 — raw JSON 직접 편집 (위 폼에 없는 필드까지)</summary><textarea id="cfgbox" aria-label="config raw JSON" style="height:200px;margin-top:8px"></textarea><div><button onclick="saveConfigRaw()" style="margin-top:6px">raw JSON 저장</button></div></details>
+ <div class="sec" style="border-top:1px solid var(--border);padding-top:12px;margin-top:14px"><button class="d" onclick="delLoop()">🗑 이 loop 삭제</button> <span class="muted">config/mission/state만 제거 (worktree·Linear·PR 보존)</span></div>
+</div></dialog>
+<dialog id="pmodal" class="lmodal" closedby="any"><div class="hd"><b id="ptitle">📦 제품</b><span style="flex:1"></span><span id="pflash" class="live" style="margin-right:12px;font-size:12px"></span><button aria-label="닫기" onclick="closeP()">✕</button></div><div class="body">
+ <div class="fld"><label for="p_name">제품 이름</label><input id="p_name" placeholder="예: 솜이랑" oninput="pNameInput()"></div>
+ <div class="fld" id="p_idrow"><label for="p_id">id</label><input id="p_id" placeholder="somiran"> <span class="muted" style="font-size:11px">영문 소문자·하이픈 (폴더명 — 나중에 못 바꿈)</span></div>
+ <div class="fld"><label for="p_repo">코드 저장소</label><select id="p_repo"><option value="">Palace에 등록된 프로젝트를 선택하세요</option></select> <span class="muted" style="font-size:11px">경로를 입력할 필요 없이 환경 설정의 프로젝트를 선택합니다.</span></div>
+ <div class="fld"><label for="p_prBase">기본 브랜치</label><input id="p_prBase" placeholder="main" style="width:140px"> <span class="muted" style="font-size:11px">PR이 향하는 브랜치 — 작업 기준(origin/브랜치)도 여기서 자동 유도</span></div>
+ <details><summary class="muted">고급 — 제품별 OMP 명령 override</summary><div class="fld"><label for="p_omp">OMP 명령</label><input id="p_omp" placeholder="비우면 Palace의 기본 omp"> <span class="muted" style="font-size:11px">wrapper가 꼭 필요한 경우에만 입력. 모델/provider는 OMP 로컬 기본값을 사용합니다.</span></div></details>
+ <div class="sec">Linear 프로젝트 <span class="muted" style="font-size:11px;font-weight:400">이슈가 쌓이는 곳 — 제품당 1개</span> <a id="p_plink" target="_blank" style="font-size:12px;float:right"></a></div>
+ <div id="p_newlin">
+  <label class="row" style="gap:6px"><input type="radio" name="p_lin" id="p_linnew" checked> ⚡ 새로 만들기 — 팀: <select id="p_team" style="width:auto" aria-label="Linear 팀 선택"></select></label>
+  <label class="row" style="gap:6px;margin-top:4px"><input type="radio" name="p_lin" id="p_linold"> 기존 프로젝트 사용 (아래에 ID 입력)</label>
+ </div>
+ <div class="fld"><label for="p_pid">프로젝트 ID</label><input id="p_pid" placeholder="Linear 프로젝트 UUID"></div>
+ <div class="sec">🏷 자동 분류 <span class="muted" style="font-size:11px;font-weight:400">라벨 없이 쌓인 이슈를 AI가 아래 분류 중 하나로 라우팅 — 각 분류는 그 라벨을 담당하는 루프가 집어갑니다. 전부 지우면 분류 안 함.</span></div>
+ <div id="p_routes"></div><button onclick="addRoute()">+ 분류 추가</button>
+ <div id="p_loopsec" style="display:none"><div class="sec">🧩 루프 <span class="muted" style="font-size:11px;font-weight:400">이 제품에 속한 루프들 — 각자 담당 라벨의 이슈만 처리</span></div>
+ <div id="p_loops" class="muted" style="font-size:13px;line-height:1.9;margin-bottom:8px"></div>
+ <div class="row" style="gap:6px;flex-wrap:wrap"><select id="p_att_loop" aria-label="편입할 루프" style="width:auto"></select><input id="p_att_label" placeholder="담당 라벨 (예: Bug)" style="width:150px"><button onclick="attachLoop()">🔗 편입</button><span style="flex:1"></span><button class="p" onclick="newLoopInProduct()">+ 이 제품에 새 루프</button></div>
+ <div class="muted" style="font-size:11px;margin-top:4px">편입: 그 루프의 이슈를 이 제품 프로젝트로 옮기고(전용 프로젝트였다면) 담당 라벨을 붙인 뒤, 공통 설정을 제품 상속으로 전환합니다.</div></div>
+ <div id="p_scafrow" style="margin-top:12px"><label class="row" style="gap:6px"><input type="checkbox" id="p_scaffold" checked> 🐞 버그 자동수정 루프도 같이 만들기 <span class="muted" style="font-size:11px">(꺼진 상태로 생성 — mission 검토 후 켜세요)</span></label></div>
+ <div class="row" style="margin-top:14px"><button class="p" id="p_submit" onclick="submitProduct()">생성</button> <span class="muted" id="p_hint" style="font-size:12px"></span></div>
+</div></dialog>
+<dialog id="wsmodal" class="lmodal" closedby="any"><div class="hd"><b>⚙️ 워크스페이스 설정 <span class="muted" style="font-weight:400;font-size:12px">· 전역</span></b><span style="flex:1"></span><span id="wsflash" class="live" style="margin-right:12px;font-size:12px"></span><button aria-label="닫기" onclick="closeWS()">✕</button></div><div class="body">
+ <div class="sec">Linear API 키 <span class="muted" style="font-size:11px;font-weight:400">버리기·이슈정리 기능용</span><span id="linkeystat" class="muted" style="float:right;font-size:12px"></span></div>
+ <div class="row"><input id="linearkeybox" type="password" aria-label="Linear API 키" placeholder="lin_api_… 붙여넣기" style="flex:1;width:auto;font-family:var(--mono)"> <button class="p" onclick="saveLinearKey()">저장</button></div>
+ <div class="muted" style="font-size:11px;margin-top:4px">Linear → Settings → Security &amp; access → Personal API keys. 저장 즉시 적용(재시작 불필요), loops.env(gitignore)에 보관 · 값은 다시 표시 안 함.</div>
+ <div class="sec" style="margin-top:20px">Telegram 원격 봇 <span class="muted" style="font-size:11px;font-weight:400">폰 알림 + 원격제어</span><span id="tgstat" class="muted" style="float:right;font-size:12px"></span></div>
+ <div class="row"><input id="tgtokenbox" type="password" aria-label="Telegram 봇 토큰" placeholder="BotFather 봇 토큰 붙여넣기" style="flex:1;width:auto;font-family:var(--mono)"> <button class="p" onclick="saveTelegram()">저장</button></div>
+ <div class="row" style="margin-top:8px"><button class="p" onclick="botStart()">▶ 봇 시작</button> <button class="d" onclick="botStop()">■ 중지</button> <span id="tgrun" class="muted" style="font-size:12px"></span></div>
+ <div class="muted" style="font-size:11px;margin-top:4px">@BotFather → /newbot → 토큰 저장 → ▶ 봇 시작 → 봇에게 아무 메시지 = 페어링. 이후 게이트에 답장으로 결정·버튼 탭. loops.env(gitignore) 보관 · 값 재표시 안 함. (대시보드가 떠 있어야 알림 동작)</div>
+</div></dialog>
+<dialog id="rmodal" class="lmodal" closedby="any"><div class="hd"><b>📱 폰 원격 접속 <span class="muted" style="font-weight:400;font-size:12px">· Tailscale</span></b><span style="flex:1"></span><span id="rflash" class="live" style="margin-right:12px;font-size:12px"></span><button aria-label="닫기" onclick="closeR()">✕</button></div><div class="body">
+ <div id="rstat" class="muted" style="font-size:12px;margin-bottom:10px">…</div>
+ <div class="row" style="gap:8px"><button class="p" id="rbtn_on" onclick="remoteToggle(true)">▶ 원격 켜기</button> <button class="d" id="rbtn_off" onclick="remoteToggle(false)" style="display:none">■ 끄기</button></div>
+ <div id="rlive" style="display:none;margin-top:16px">
+  <div class="sec">폰에서 이 주소(HTTPS)를 열거나 QR을 스캔하세요 <span class="muted" style="font-size:11px;font-weight:400">폰에도 Tailscale 앱이 로그인돼 있어야 함(같은 tailnet)</span></div>
+  <div class="row" style="gap:8px;align-items:center"><input id="rurl" readonly aria-label="원격 접속 주소" style="flex:1;width:auto;font-family:var(--mono);font-size:12px"> <button class="p" onclick="copyRemoteUrl()">복사</button> <button onclick="window.open(document.getElementById('rurl').value,'_blank','noopener')">열기</button></div>
+  <div style="display:flex;justify-content:center;margin-top:16px"><div id="rqr" style="background:#fff;padding:12px;border-radius:8px;line-height:0"></div></div>
+  <div class="muted" style="font-size:11px;margin-top:10px">폰에서 연 뒤 <b>공유 → 홈 화면에 추가</b> 하면 앱처럼 쓰고, 아래 푸시 알림도 켤 수 있습니다(iOS는 홈화면 앱에서만 푸시 가능).</div>
+ </div>
+ <div class="sec" style="margin-top:20px">🔔 푸시 알림 <span class="muted" style="font-size:11px;font-weight:400">루프가 사람을 기다리면(🔴 human-gate 등) 앱이 꺼져 있어도 폰이 울림</span></div>
+ <div class="row" style="gap:8px"><button class="p" id="pushbtn" onclick="pushToggle()">알림 켜기</button> <button id="pushtest" onclick="pushTest()" style="display:none">테스트 알림</button></div>
+ <div id="pushnote" class="muted" style="font-size:11px;margin-top:6px"></div>
+ <div id="pushloops" style="margin-top:12px"></div>
+ <div class="muted" style="font-size:11px;margin-top:14px">원격은 <code>tailscale cert</code> 로 이 노드의 tailnet 정식 인증서를 받아 대시보드 서버가 tailscale IP에 <b>HTTPS</b> 리스너를 직접 엽니다 — LAN·공개 인터넷 노출 없이 내 tailnet 기기에서만. <code>tailscale serve</code> 설정은 건드리지 않습니다. 비밀번호를 더하려면 loops.env 에 <code>LOOPS_REMOTE_AUTH="user:pass"</code> (대시보드 재시작).</div>
+</div></dialog>
+<script src="vendor/qrcode.min.js"></script>
+<script>
+var sel=localStorage.getItem('loop')||null, renderedLoop=null, sRef=null, sLoop=null, sDispatcher=false, sBot=false, sTimer=null, lastData=null;
+var failCount=0, lastOk=0;
+function applyTheme(t){document.documentElement.dataset.theme=t;var b=document.getElementById('themebtn');if(b)b.textContent=t==='light'?'☀️':'🌙';}
+function toggleTheme(){var t=(localStorage.getItem('theme')||'dark')==='light'?'dark':'light';localStorage.setItem('theme',t);applyTheme(t);}
+applyTheme(localStorage.getItem('theme')||'dark');
+var CFG_FIELDS=[{k:'name',label:'이름'},{k:'emoji',label:'emoji'},{k:'maxWorkers',label:'동시 워커 수(cap)',type:'number',def:2,hint:'동시에 열리는 PR/워커 최대치'},{k:'backlogTarget',label:'백로그 목표(개)',type:'number',def:5,hint:'백로그가 이 수보다 적을 때만 새 작업 발굴'},{k:'baseRef',label:'base ref'},{k:'prBase',label:'PR base 브랜치'},{k:'delivery',label:'배달 방식',type:'select',options:['pr','direct'],def:'pr',hint:'pr=PR만 열고 사람이 머지. direct=명시적 opt-in 직접 push. 두 모드 모두 force-push 금지.'},{k:'branchPrefix',label:'브랜치 prefix'},{k:'linearProjectId',label:'Linear projectId'},{k:'linearProjectUrl',label:'Linear projectUrl'},{k:'product',label:'제품',hint:'제품 id. repo·Linear·OMP 설정을 제품에서 상속'},{k:'linearLabel',label:'담당 라벨',hint:'공유 Linear 프로젝트에서 이 루프가 담당할 라벨'}];
+function rel(ts){if(!ts)return'';var s=Math.floor(Date.now()/1000)-ts,a=Math.abs(s),x=s<0?' 후':' 전';if(a<60)return a+'s'+x;if(a<3600)return Math.floor(a/60)+'m'+x;if(a<86400)return Math.floor(a/3600)+'h'+x;return Math.floor(a/86400)+'d'+x;}
+function esc(x){return String(x==null?'':x).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function ctl(a,ex){return fetch('api/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({action:a,loop:sel},ex||{}))}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok===false&&j.out)alert(j.out);setTimeout(load,300);return j;});}
+function selectLoop(id){sel=id;localStorage.setItem('loop',id);renderedLoop=null;closeNav();load();}
+function toggleNav(){document.body.classList.toggle('nav-open');}
+function closeNav(){document.body.classList.remove('nav-open');}
+function selectAttention(){var L=(lastData&&lastData.loops||[]).find(function(x){return (x.attentionCount||0)>0;});if(L)selectLoop(L.id);}
+function viewSession(ref,label){sRef=ref;sLoop=null;sDispatcher=false;sBot=false;document.getElementById('stitle').textContent=label;showS();}
+function viewLog(loop){sRef=null;sLoop=loop;sDispatcher=false;sBot=false;document.getElementById('stitle').textContent=loop+' orchestrator 로그';showS();}
+function viewDispatcherLog(){sRef=null;sLoop=null;sDispatcher=true;sBot=false;document.getElementById('stitle').textContent='📋 dispatcher 로그';showS();}
+function viewBotLog(){sRef=null;sLoop=null;sDispatcher=false;sBot=true;document.getElementById('stitle').textContent='🤖 Telegram 봇 로그';showS();}
+function showS(){document.getElementById('smodal').showModal();refS();if(sTimer)clearInterval(sTimer);sTimer=setInterval(refS,2500);}
+function closeS(){document.getElementById('smodal').close();sDispatcher=false;sBot=false;if(sTimer)clearInterval(sTimer);}
+function refS(){var q=sBot?'bot=1':(sDispatcher?'dispatcher=1':(sRef?('ref='+encodeURIComponent(sRef)):('loop='+encodeURIComponent(sLoop))));fetch('api/session?'+q).then(function(r){return r.text();}).then(function(t){document.getElementById('sbody').textContent=t;});}
+function openCreate(preProd){
+ var s=document.getElementById('c_prod'),ps=(LASTD&&LASTD.products)||{};
+ s.innerHTML='<option value="">(없음 — 독립 루프)</option>'+Object.keys(ps).map(function(k){return '<option value="'+esc(k)+'"'+(k===preProd?' selected':'')+'>📦 '+esc(ps[k].name||k)+'</option>';}).join('');
+ document.getElementById('cmodal').showModal();loadProjectSelect('c_repo','');setTimeout(function(){var e=document.getElementById('c_desc');if(e)e.focus();},50);}
+/* ── 제품(product) 모달: 생성/편집 겸용. 제품 = Linear 프로젝트 1개 + 공통 설정 + (선택) 자동 분류. ── */
+var pMode='edit',pId=null;
+function pv(id){var e=document.getElementById(id);return e?e.value.trim():'';}
+function loadProjectSelect(id,selected){fetch('api/projects').then(function(r){return r.json();}).then(function(rows){var e=document.getElementById(id),items=Array.isArray(rows)?rows:[];e.innerHTML='<option value="">프로젝트 선택</option>'+items.map(function(p){return '<option value=\"'+esc(p.path)+'\"'+(p.path===selected?' selected':'')+'>'+esc(p.id)+'</option>';}).join('');if(selected&&!items.some(function(p){return p.path===selected;}))e.insertAdjacentHTML('beforeend','<option value=\"'+esc(selected)+'\" selected>현재 연결 프로젝트</option>');});}
+function routeRow(r){r=r||{};return '<div class="row prow" style="gap:6px;margin-bottom:6px"><input class="r_label" aria-label="분류 라벨" placeholder="Bug" value="'+esc(r.label||'')+'" style="width:120px"><input class="r_desc" aria-label="분류 설명" placeholder="어떤 이슈가 이 분류인지 — AI가 이 설명을 보고 라우팅합니다" value="'+esc(r.desc||'')+'" style="flex:1;width:auto"><button aria-label="분류 삭제" onclick="this.parentNode.remove()">✕</button></div>';}
+function addRoute(r){document.getElementById('p_routes').insertAdjacentHTML('beforeend',routeRow(r));}
+function pNameInput(){if(pMode!=='create')return;var s=pv('p_name').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');if(s)document.getElementById('p_id').value=s;}
+function openProductNew(){
+ pMode='create';pId=null;
+ document.getElementById('ptitle').textContent='📦 새 제품';document.getElementById('p_submit').textContent='제품 생성';
+ ['p_name','p_id','p_omp','p_pid'].forEach(function(i){document.getElementById(i).value='';});
+ loadProjectSelect('p_repo','');document.getElementById('p_prBase').value='main';
+ document.getElementById('p_idrow').style.display='';document.getElementById('p_newlin').style.display='';document.getElementById('p_scafrow').style.display='';document.getElementById('p_loopsec').style.display='none';
+ document.getElementById('p_linnew').checked=true;document.getElementById('p_plink').textContent='';
+ document.getElementById('p_hint').textContent='생성 후: 제품 헤더 아래에 루프가 나타나면 검토하고 켜세요.';
+ document.getElementById('p_routes').innerHTML='';
+ addRoute({label:'Bug',desc:'결함 — 에러·크래시·데이터 유실·기대와 다른 동작. 코드 수정으로 고침'});
+ addRoute({label:'Feature',desc:'새 기능·개선·아이디어·요청 — 제품 검토(PM) 대상'});
+ fetch('api/linear/teams').then(function(r){return r.json();}).then(function(j){var s=document.getElementById('p_team');s.innerHTML=(j.teams||[]).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>';}).join('')||'<option value="">(팀 조회 실패 — 기존 프로젝트 ID를 쓰세요)</option>';});
+ document.getElementById('pmodal').showModal();
+ setTimeout(function(){document.getElementById('p_name').focus();},50);
+}
+function openProduct(id){
+ pMode='edit';pId=id;var P=(LASTD&&LASTD.products||{})[id]||{};
+ document.getElementById('ptitle').textContent='📦 '+(P.name||id)+' 설정';document.getElementById('p_submit').textContent='저장';
+ document.getElementById('p_name').value=P.name||'';loadProjectSelect('p_repo',P.repo||'');
+ document.getElementById('p_prBase').value=P.prBase||'main';document.getElementById('p_omp').value=P.ompCommand||'';
+ document.getElementById('p_pid').value=P.linearProjectId||'';
+ document.getElementById('p_idrow').style.display='none';document.getElementById('p_newlin').style.display='none';document.getElementById('p_scafrow').style.display='none';
+ var a=document.getElementById('p_plink');if(P.linearProjectUrl){a.href=P.linearProjectUrl;a.textContent='열기 ↗';}else{a.textContent='';}
+ document.getElementById('p_hint').textContent='저장 즉시 적용 (재시작 불필요)';
+ document.getElementById('p_routes').innerHTML='';(P.routes||[]).forEach(addRoute);
+ // 🧩 루프 섹션: 멤버 목록 + 미소속 루프 편입 셀렉트
+ document.getElementById('p_loopsec').style.display='';
+ var loops=(LASTD&&LASTD.loops)||[];
+ document.getElementById('p_loops').innerHTML=loops.filter(function(L){return L.product===id;}).map(function(L){return '<div>'+L.emoji+' '+esc(L.name)+' <span style="font-size:11px">— 라벨 <b>'+esc(L.linearLabel||'(전체)')+'</b> · '+(L.enabled?'on':'off')+'</span></div>';}).join('')||'<div>(아직 루프 없음 — 아래에서 편입하거나 새로 만드세요)</div>';
+ var free=loops.filter(function(L){return !L.product;});
+ document.getElementById('p_att_loop').innerHTML=free.length?free.map(function(L){return '<option value="'+esc(L.id)+'">'+L.emoji+' '+esc(L.name)+'</option>';}).join(''):'<option value="">(편입할 독립 루프 없음)</option>';
+ document.getElementById('pmodal').showModal();
+}
+function attachLoop(){
+ var l=pv('p_att_loop'),lb=pv('p_att_label');
+ if(!l){alert('편입할 루프가 없습니다');return;}
+ if(!lb){alert('담당 라벨을 입력하세요 (예: Bug)');return;}
+ if(!confirm('루프 "'+l+'"를 이 제품에 편입합니다.\n\n· 그 루프가 전용 Linear 프로젝트를 쓰고 있었다면 이슈 전부를 이 제품 프로젝트로 옮기고 라벨 "'+lb+'"를 붙입니다.\n· 공통 설정(repo·계정 등)은 제품 상속으로 전환됩니다.\n\n계속할까요?'))return;
+ ctl('attach-loop',{loop:l,product:pId,linearLabel:lb}).then(function(j){if(j&&j.ok){flash(j.out);setTimeout(function(){openProduct(pId);},800);}});
+}
+function newLoopInProduct(){var k=pId;closeP();openCreate(k);}
+function closeP(){document.getElementById('pmodal').close();}
+function submitProduct(){
+ var routes=[].map.call(document.querySelectorAll('#p_routes .prow'),function(row){return {label:row.querySelector('.r_label').value,desc:row.querySelector('.r_desc').value};});
+ var base={name:pv('p_name'),repo:pv('p_repo'),prBase:pv('p_prBase'),ompCommand:pv('p_omp'),routes:routes};
+ if(pMode==='create'){
+  if(!pv('p_name')||!pv('p_id')){alert('제품 이름과 id를 입력하세요');return;}
+  var useNew=document.getElementById('p_linnew').checked&&!pv('p_pid');
+  if(!useNew&&!pv('p_pid')){alert('기존 프로젝트를 쓰려면 프로젝트 ID를 입력하세요');return;}
+  ctl('create-product',Object.assign(base,{id:pv('p_id'),linearProjectId:useNew?'':pv('p_pid'),linearTeamId:useNew?pv('p_team'):'',scaffoldBug:document.getElementById('p_scaffold').checked})).then(function(j){if(j&&j.ok){flash(j.out);closeP();}});
+ }else{
+  ctl('save-product',Object.assign(base,{product:pId,linearProjectId:pv('p_pid')})).then(function(j){if(j&&j.ok)flash('📦 저장됨 — 즉시 적용');});
+ }
+}
+function buildLoop(){var d=document.getElementById('c_desc').value.trim();if(!d){alert('만들고 싶은 루프를 한 줄로 설명하세요');return;}fetch('api/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action:'build-loop',description:d,product:document.getElementById('c_prod').value,linearLabel:document.getElementById('c_label').value.trim()})}).then(function(r){return r.json();}).then(function(j){alert(j.out||'');closeC();});}
+function closeC(){document.getElementById('cmodal').close();}
+function createLoop(){var b={id:c_id.value,name:c_name.value,emoji:c_emoji.value,repo:c_repo.value,linearProjectId:c_pid.value,intervalMin:c_iv.value,mission:c_mission.value,product:document.getElementById('c_prod').value,linearLabel:document.getElementById('c_label').value.trim()};fetch('api/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(Object.assign({action:'create-loop'},b))}).then(function(r){return r.json();}).then(function(j){alert(j.out||'');if(j.ok){closeC();var m=/loop 생성: (\S+)/.exec(j.out);selectLoop(m?m[1]:c_id.value);}});}
+function startIssue(id){if(!confirm(id+' 지금 작업 시작? (worker 탭 생성→구현→PR)'))return;ctl('start-issue',{issue:id});}
+function retryIssue(id){if(!confirm(id+' 를 다시 시도할까요?\n· 자가복구 카운터 리셋 (다시 자동복구 시도 대상이 됨)\n· worktree가 있으면 진행분 보존한 채 재기동, 없으면 새로 생성'))return;ctl('heal-issue',{issue:id});}
+function closeTab(ws){if(!confirm('이 worker 탭(cmux 패널/세션)을 닫을까요?'))return;ctl('close-tab',{workspace:ws});}
+function discardIssue(id,ws){if(!confirm(id+' 를 버릴까요?\n· Linear 이슈 → Canceled (다시 발굴/실행 안 됨)\n· 열린 세션 탭이 있으면 닫음\n· worktree·브랜치 제거 (PR/Linear는 보존)'))return;ctl('cancel-issue',{issue:id,workspace:ws||undefined});}
+function cleanupIssue(id){if(!confirm(id+' 잔여 리소스를 정리할까요?\n· cmux 세션 탭이 있으면 닫음\n· worktree 디렉토리 + 브랜치 제거\n(종료된 이슈 전용 — PR/Linear는 보존)'))return;ctl('cleanup-issue',{issue:id});}
+function reconcile(loop,n){if(!confirm('In Review의 끝난 PR '+n+'건을 정리할까요?\n· 머지된 PR → Linear Done\n· 닫힌 PR → Linear Canceled\n(orchestrator가 빠르게 1회 실행 — ~1분 후 보드 갱신, cap 슬롯이 풀립니다)'))return;ctl('reconcile',{loop:loop}).then(function(j){if(j&&j.ok)viewLog(loop);});}
+function runNow(){ctl('run-now').then(function(j){if(j&&j.ok){viewLog(sel);}});}
+function toggleHideDone(){localStorage.setItem('hideDone',localStorage.getItem('hideDone')==='0'?'1':'0');load();}
+var gateId=null,gateInfo={};
+function openGate(id){gateId=id;var g=gateInfo[id]||{};document.getElementById('gtitle').textContent='⚖️ '+id+' — 판단 내리기';
+ var ctx='<div style="font-weight:600;margin-bottom:6px">'+esc(g.title||id)+'</div>'+(g.ask?'<div><span style="color:var(--warning)">🤔 결정할 것:</span> '+esc(g.ask)+'</div>':'<div class="muted">이 human-gate의 상세 사유는 전체 본문에서 확인하세요 (orchestrator가 아직 요약을 안 남겼습니다).</div>')+(g.v?'<div style="margin-top:6px"><span style="color:var(--info)">🧪 제안검증:</span> '+({strengthen:'🟢 강화',narrow:'🟡 축소 권고',reject:'🔴 기각 권고'}[g.v.verdict]||esc(g.v.verdict))+' — '+esc(g.v.askNote||g.v.summary||'')+((g.v.alternative&&g.v.alternative!=='없음')?'<br><span class="muted">축소안: '+esc(g.v.alternative)+'</span>':'')+'</div>':'')+(g.url?'<div style="margin-top:6px"><a href="'+esc(g.url)+'" target=_blank>전체 본문 ↗</a></div>':'');
+ document.getElementById('gctx').innerHTML=ctx;
+ document.getElementById('g_decision').value='';document.getElementById('gmodal').showModal();setTimeout(function(){document.getElementById('g_decision').focus();},50);}
+function closeG(){document.getElementById('gmodal').close();gateId=null;}
+function submitGate(){var d=document.getElementById('g_decision').value.trim();if(!d){alert('결정 내용을 입력하세요');return;}if(!confirm(gateId+' — 이 결정으로 워커를 진행할까요?\n(human-gate 해제 + 워커 탭 생성)'))return;ctl('resolve-gate',{issue:gateId,decision:d}).then(function(j){if(j&&j.ok)closeG();});}
+function setSched(){ctl('set-schedule',{startAt:document.getElementById('startAt').value,intervalMin:document.getElementById('ivMin').value}).then(function(j){if(j&&j.ok)flash('스케줄 적용됨');});}
+function saveMission(){ctl('save-mission',{content:document.getElementById('missionbox').value}).then(function(j){if(j&&j.ok)flash('mission 저장됨');});}
+function saveVision(){ctl('save-vision',{content:document.getElementById('visionbox').value}).then(function(j){if(j&&j.ok)flash('vision 저장됨 (다음 run부터 주입)');});}
+function saveLearnings(){ctl('save-learnings',{content:document.getElementById('learningsbox').value}).then(function(j){if(j&&j.ok)flash('learnings 저장됨 (다음 run부터 주입)');});}
+function runRetro(){ctl('run-retro',{}).then(function(j){if(j)flash(j.out||'');});}
+function saveConfig(){var o={};CFG_FIELDS.forEach(function(f){var el=document.getElementById('cf_'+f.k);if(!el)return;var v=el.value;if(f.type==='number')v=+v;o[f.k]=v;});ctl('save-config',o).then(function(j){if(j&&j.ok)flash('config 저장됨');else if(j&&j.out)alert(j.out);});}
+function saveLinearKey(){var v=document.getElementById('linearkeybox').value.trim();if(!v){alert('Linear 키를 붙여넣으세요');return;}ctl('set-linear-key',{key:v}).then(function(j){if(j&&j.ok){document.getElementById('linearkeybox').value='';flash('Linear 키 저장됨');var s=document.getElementById('linkeystat');if(s)s.textContent='✓ 설정됨';}else if(j&&j.out)alert(j.out);});}
+function saveTelegram(){var v=document.getElementById('tgtokenbox').value.trim();if(!v){alert('BotFather 봇 토큰을 붙여넣으세요');return;}ctl('set-telegram',{token:v}).then(function(j){if(j&&j.ok){document.getElementById('tgtokenbox').value='';flash('봇 토큰 저장됨');var s=document.getElementById('tgstat');if(s)s.textContent='⏳ 페어링 대기';}else if(j&&j.out)alert(j.out);});}
+function botStart(){ctl('bot-start').then(function(j){if(j&&j.out)flash(j.out);});}
+function botStop(){if(!confirm('Telegram 봇을 중지할까요? (폰 알림·원격제어 멈춤)'))return;ctl('bot-stop').then(function(j){if(j&&j.out)flash(j.out);});}
+function delLoop(){if(!confirm(sel+' loop 삭제? config/mission/state 제거 (worktree·Linear·PR은 보존)'))return;ctl('delete-loop').then(function(){closeO();localStorage.removeItem('loop');sel=null;renderedLoop=null;load();});}
+
+var LASTD=null;   // 마지막 /api/status — 제품 ⚙️ 모달 프리필용
+function render(d){
+ LASTD=d;
+ lastData=d;
+ if(!sel&&d.loops[0])sel=d.loops[0].id;
+ var loopItem=function(L){var c=L.counts||{};var tot=(c.Backlog||0)+(c['In Progress']||0)+(c['In Review']||0);return '<div class="loopitem'+(L.id===sel?' sel':'')+'" onclick="selectLoop(\''+L.id+'\')"><div class="n">'+L.emoji+' '+esc(L.name)+'</div><div class="m"><span class="dot '+(L.enabled?(L.paused?'pause':'on'):'off')+'"></span>'+(L.enabled?(L.paused?'paused':'on'):'off')+' · '+tot+' 작업'+(L.orchRunning?' <span class="spin">⏳</span>실행중':'')+(L.attentionCount>0?' <span style="color:var(--danger)">🔴'+L.attentionCount+'</span>':'')+(L.nextTs?' · 다음 '+rel(L.nextTs):'')+'</div></div>';};
+ // product 단위 그룹핑: 같은 product의 루프들 위에 헤더 1줄(제품명·Linear 링크·오늘 triage 건수). product 없는 루프는 헤더 없이 기존 그대로.
+ var pgroups={},porder=[];d.loops.forEach(function(L){var k=L.product||'';if(!pgroups[k]){pgroups[k]=[];porder.push(k);}pgroups[k].push(L);});
+ document.getElementById('looplist').innerHTML=porder.map(function(k){var body=pgroups[k].map(loopItem).join('');if(!k)return body;var P=(d.products||{})[k]||{};var tt=(P.triageLast||[]).map(function(e){return e.issue+'→'+e.label;}).join(' · ');return '<div class="prodhead"><span class="pn">📦 '+esc(P.name||k)+'</span>'+(P.linearProjectUrl?'<a href="'+P.linearProjectUrl+'" target="_blank" title="Linear 프로젝트 열기">↗</a>':'')+(P.triage?'<span class="tt" title="'+esc(tt||'오늘 분류 없음')+'">🏷'+(P.triageToday||0)+'</span>':'')+'<button class="pg" title="제품 설정" aria-label="제품 설정" onclick="openProduct(\''+k+'\')">⚙️</button></div>'+body;}).join('')||'<div class=muted style="padding:8px">loop 없음</div>';
+ var attn=d.loops.reduce(function(s,L){return s+(L.attentionCount||0);},0);
+ document.getElementById('attnsum').innerHTML=attn>0?'<span class="attn" onclick="selectAttention()" title="개입 필요한 첫 loop로 이동">🔴 '+attn+'건 개입 필요</span>':'<span class="clean">✓ clean</span>';
+ document.getElementById('mtopattn').textContent=attn>0?('🔴 '+attn):'';   // 모바일 탑바 주의 표시
+ var gd=d.dispatcher;
+ var _pz=gd.paused;
+ var gH='<div class="row" style="gap:8px;margin-bottom:9px"><span class="dot '+(gd.running?(_pz?'pause':'on'):'off')+'"></span><b style="font-size:13px;letter-spacing:.2px">'+(gd.running?(_pz?'paused':'running'):'stopped')+'</b></div>'
+  +'<div class="row" style="gap:5px">'
+  +'<button class="p gtx" onclick="ctl(\'start\')" title="디스패처 시작" aria-label="디스패처 시작">▶</button>'
+  +'<button class="gtx" onclick="ctl(\''+(_pz?'resume':'pause')+'\')" title="'+(_pz?'재개':'일시정지')+'" aria-label="'+(_pz?'재개':'일시정지')+'">'+(_pz?'▶▶':'⏸')+'</button>'
+  +'<button class="d gtx" onclick="ctl(\'stop\')" title="정지" aria-label="정지">⏹</button>'
+  +'<ot-dropdown><button class="gtx" title="로그·설정·안잠" aria-label="로그·설정·안잠" popovertarget="gmenu">⋯</button>'
+  +'<menu popover id="gmenu" role="menu" aria-label="디스패처 메뉴">'
+  +'<button role="menuitem" class="ghost" popovertarget="gmenu" popovertargetaction="hide" onclick="viewDispatcherLog()">📋 dispatcher 로그</button>'
+  +'<button role="menuitem" class="ghost" popovertarget="gmenu" popovertargetaction="hide" onclick="viewBotLog()">🤖 봇 로그'+(d.telegram?(d.telegram.running?' ●':(d.telegram.configured?' ○':'')):'')+'</button>'
+  +'<button role="menuitem" class="ghost" popovertarget="gmenu" popovertargetaction="hide" onclick="openR()">📱 폰 원격 접속'+(d.remote?(d.remote.on?' ●':''):'')+'</button>'
+  +'<button role="menuitem" class="ghost" popovertarget="gmenu" popovertargetaction="hide" onclick="openWS()">⚙️ 워크스페이스 설정</button>'
+  +'<hr>'
+  +'<button role="menuitem" class="ghost" popovertarget="gmenu" popovertargetaction="hide" onclick="ctl(\''+(d.awake?'awake-off':'awake-on')+'\')">'+(d.awake?'☕ 안잠 켜짐 · 끄기':'💤 잠자기방지 · 켜기')+'</button>'
+  +'</menu></ot-dropdown>'
+  +'</div>';
+ var gel=document.getElementById('gctl'); if(gel.dataset.h!==gH){gel.innerHTML=gH; gel.dataset.h=gH;}
+ var L=d.loops.find(function(x){return x.id===sel;});
+ if(!L){document.getElementById('main').innerHTML='<div class="muted" style="padding:40px">왼쪽에서 loop를 선택하세요.</div>';renderedLoop=null;return;}
+ if(renderedLoop!==L.id){renderedLoop=L.id;document.getElementById('main').innerHTML='<div id="lbody"></div>';}
+ renderBody(d,L);
+}
+function renderBody(d,L){
+ var c=L.counts||{};
+ var lr=L.lastRun;
+ var banner=(lr&&lr.exit!==0)?'<div role="alert" data-variant="danger" onclick="viewLog(\''+L.id+'\')" title="클릭하면 orchestrator 로그" style="cursor:pointer;margin-bottom:10px;font-size:13px;font-weight:600">⚠️ 직전 orchestrator run 실패 (exit '+lr.exit+')'+(lr.ts?' · '+rel(lr.ts):'')+' — orch 로그 보기 ↗</div>':'';
+ if(L.blocked&&L.blocked.reason)banner+='<div role="alert" data-variant="danger" onclick="viewLog(\''+L.id+'\')" title="orchestrator가 인프라 문제로 사이클을 못 돌고 있음 — 클릭하면 로그" style="cursor:pointer;margin-bottom:10px;font-size:13px;font-weight:600">⛔ 사이클 막힘'+(L.blocked.streak?' ×'+L.blocked.streak:'')+' — '+esc(L.blocked.reason)+'</div>';
+ var ec=L.economics;
+ if(ec&&ec.budgetExceeded)banner+='<div role="alert" data-variant="warning" style="margin-bottom:10px;font-size:13px;font-weight:600">💰 일일 예산 초과 ($'+ec.todayUsd+'/$'+ec.budgetDailyUsd+') — 오늘 남은 사이클은 자동 skip, 자정에 재개</div>';
+ var h=banner+'<div class="row" style="justify-content:space-between"><h1 style="margin:0;font-size:18px">'+L.emoji+' '+esc(L.name)+'</h1><div class="row">'
+  +(L.orchRunning?'<button onclick="viewLog(\''+L.id+'\')" title="orchestrator 실행 중 — 클릭하면 라이브 로그"><span class="spin">⏳</span> 실행 중 · 로그</button>':'<button onclick="runNow()">⚡ run now</button>')
+  +((L.mergedInReview>0||L.closedInReview>0)?'<button class="p" onclick="reconcile(\''+L.id+'\','+(L.mergedInReview+(L.closedInReview||0))+')">🧹 PR 정리 '+(L.mergedInReview+(L.closedInReview||0))+'건</button>':'')
+  +'<button onclick="ctl(\''+(L.paused?'loop-resume':'loop-pause')+'\')">'+(L.paused?'▶ 재개':'⏸ 일시정지')+'</button>'
+  +'<button onclick="ctl(\'toggle-enabled\')">'+(L.enabled?'끄기':'켜기')+'</button>'
+  +(L.linearProjectUrl?'<button onclick="window.open(\''+esc(L.linearProjectUrl)+'\',\'_blank\',\'noopener\')">Linear↗</button>':'')
+  +'<button onclick="viewLog(\''+L.id+'\')">orch 로그</button>'
+  +'<button class="p" onclick="openSettings()">⚙️ 설정</button></div></div>';
+ var cap=L.maxWorkers||2,inflight=(c['In Progress']||0)+(c['In Review']||0),capacity=cap-inflight;
+ var _segs='';for(var _gi=0;_gi<cap;_gi++)_segs+='<span class="seg'+(_gi<inflight?' fill':'')+'"></span>';
+ h+='<div class="counts" style="margin-top:8px">'+['Backlog','In Progress','In Review','Done'].map(function(k){return '<span><b>'+(c[k]||0)+'</b> '+stateBadge(k)+'</span>';}).join('')+'<span class="gauge'+(capacity<=0?' full':'')+'" title="동시 워커 슬롯 — 채워진 칸=가동중('+(L.delivery==='direct'?'In Progress':'In Progress+In Review')+') · cap '+cap+'"><span class="bars">'+_segs+'</span>슬롯 '+inflight+'/'+cap+'</span></div>';
+ h+=(lr&&lr.ts)?'<div class="muted" style="margin-top:6px;font-size:12px">🕒 마지막 run '+rel(lr.ts)+(L.nextTs?' · 다음 '+rel(L.nextTs):'')+'</div>':'';
+ if(ec&&(ec.totalUsd>0||ec.budgetDailyUsd))h+='<div class="muted" style="margin-top:4px;font-size:12px" title="측정 범위: headless 오케스트레이터 사이클 비용 (라이브 워커 TUI 비용은 미측정)">💰 오늘 $'+ec.todayUsd+(ec.budgetDailyUsd?' / 예산 $'+ec.budgetDailyUsd:'')+' · 누적 $'+ec.totalUsd+' ('+ec.cycles+'사이클)'+(ec.perMergedUsd!=null?' · 머지 1건당 $'+ec.perMergedUsd:'')+(ec.mergeRate!=null?' · merge율 '+Math.round(ec.mergeRate*100)+'%':'')+(ec.reworkTotal?' · 재작업 '+ec.reworkTotal+'회':'')+'</div>';
+ var _bl=(L.issues||[]);
+ var actionable=_bl.filter(function(w){return w.state==='Backlog'&&w.flag!=='human-gate'&&w.attention!=='human-gate'&&!/run log/i.test(w.title||'');}).length;
+ var gated=_bl.filter(function(w){return w.state==='Backlog'&&(w.flag==='human-gate'||w.attention==='human-gate');}).length;
+ var bmsg,bvar;
+ if(capacity<=0){var _ip=c['In Progress']||0,_ir=c['In Review']||0,_slot='워커 슬롯 '+inflight+'/'+cap+' 꽉 참';var _how;if(_ir>0&&_ip>0)_how='작업중 '+_ip+'건 + 머지 대기 '+_ir+'건 — PR을 머지하거나 작업이 완료되면 풀립니다.';else if(_ir>0)_how='In Review PR '+_ir+'건 머지 대기 — PR을 머지하면 다음 run이 backlog를 실행합니다.';else if(_ip>0)_how='worker '+_ip+'건 작업중 — 완료되면 풀립니다'+(L.delivery==='direct'?' (direct — PR 없이 main push 후 Done).':'.');else _how='슬롯 반영 대기.';bmsg='⛔ 실행 막힘 — '+_slot+' ('+_how+')';bvar='warning';}
+ else if(actionable>0){bmsg='▶ 다음 run에 최대 '+Math.min(capacity,actionable)+'건 실행 (여유 슬롯 '+capacity+'/'+cap+', 실행대기 backlog '+actionable+')';bvar='success';}
+ else if(gated>0){bmsg='⚖️ 실행할 backlog 없음 — '+gated+'건이 human-gate (⚖️ 판단으로 풀어야 실행 후보가 됩니다)';bvar='warning';}
+ else{bmsg='유휴 — 실행할 backlog 없음. 다음 audit이 새 작업을 발굴합니다.';bvar='';}
+ h+='<div role="alert"'+(bvar?' data-variant="'+bvar+'"':'')+' style="margin-top:8px;font-size:12.5px">'+bmsg+'</div>';
+ var hideDone=localStorage.getItem('hideDone')!=='0';
+ var allIts=L.issues||[]; var its=hideDone?allIts.filter(function(w){return !isTerminal(w.state);}):allIts; var hidden=allIts.length-its.length;
+ allIts.forEach(function(w){if(w.flag==='human-gate'||w.attention==='human-gate')gateInfo[w.id]={title:w.title||'',ask:(w.gate&&w.gate.ask)||'',url:w.url||'',v:w.validate||null};});
+ h+='<div class="sec">이슈 / 세션 <label style="float:right;font-weight:400;font-size:12px;cursor:pointer;color:var(--muted-foreground)" title="완료(Done)·취소(Canceled)된 끝난 항목 숨기기"><input type="checkbox" onchange="toggleHideDone()"'+(hideDone?' checked':'')+'> 끝난 것 숨김'+(hidden>0?' ('+hidden+')':'')+'</label></div><div>'+(its.map(function(w){var gate=(w.flag==='human-gate'||w.attention==='human-gate')&&!w.gateResolved;return '<div class="card"><div class="l"><span class="'+(w.alive?'live':(w.stuck?'dead stuck':'dead'))+'">'+(w.alive?'●':'○')+'</span><b>'+esc(w.id)+'</b>'+stateBadge(w.state)+pchip(w.priority)+'<span class="ititle muted">'+esc(w.title||'')+'</span>'+(w.attention?badge(attLabel[w.attention]||'주의','danger'):'')+(w.healing?badge('⟳ 복구중'+((w.healAttempts||0)?' '+w.healAttempts:''),'info','워커가 죽어 자가복구 재기동 중'):'')+(w.gateResolved?badge('판단 완료','success'):'')+'</div><div class="row">'+(w.pr?'<a href="'+esc(w.pr)+'" target=_blank>PR↗</a>'+prChips(w):'')+(w.verify?badge({pass:'🔎 검증 ✅',concerns:'🔎 검증 ⚠️',fail:'🔎 검증 ❌'}[w.verify.verdict]||('🔎 '+esc(w.verify.verdict)),{pass:'success',concerns:'warning',fail:'danger'}[w.verify.verdict]||'','검증자 verdict'+(w.verify.summary?': '+w.verify.summary:'')):'')+(w.validate?badge({strengthen:'🧪 제안검증 🟢',narrow:'🧪 제안검증 🟡',reject:'🧪 제안검증 🔴'}[w.validate.verdict]||('🧪 '+esc(w.validate.verdict)),{strengthen:'success',narrow:'warning',reject:'danger'}[w.validate.verdict]||'','제안 검증자(validator) 판정'+(w.validate.summary?': '+w.validate.summary:'')):'')+(w.working?chip('작업중','var(--info)','워커가 구현 중 (아직 PR 없음)'):'')+(w.url?'<a href="'+esc(w.url)+'" target=_blank>이슈↗</a>':'')+(w.alive&&w.workspace?'<button onclick="viewSession(\''+w.workspace+'\',\'🛠 '+w.id+'\')">내용보기</button>':'')+((w.alive||w.hasWorktree)?'<button onclick="ctl(\'open-issue\',{issue:\''+w.id+'\'})">cmux 열기▶</button>':'')+(w.alive&&w.workspace?'<button class="d" onclick="closeTab(\''+w.workspace+'\')">✕ 닫기</button>':'')+(gate&&!w.alive?'<button class="p" onclick="openGate(\''+w.id+'\')">⚖️ 판단</button>':'')+((w.state==='Backlog'&&!gate&&!w.alive&&!/run log/i.test(w.title||''))?'<button class="p" onclick="startIssue(\''+w.id+'\')">'+(w.gateResolved?'▶ 시작 (판단반영)':'▶ 시작')+'</button>':'')+(w.stuck?'<button class="p" onclick="retryIssue(\''+w.id+'\')">↻ 재시도</button>':'')+((!isTerminal(w.state)&&!/run log/i.test(w.title||''))?'<button class="d" onclick="discardIssue(\''+w.id+'\',\''+(w.workspace||'')+'\')">🗑 버리기</button>':'')+((isTerminal(w.state)&&(w.hasWorktree||w.alive)&&!/run log/i.test(w.title||''))?'<button class="d" onclick="cleanupIssue(\''+w.id+'\')">🧹 정리</button>':'')+'</div></div>';}).join('')||'<div class=muted>'+(hidden>0?'(끝난 항목 '+hidden+'건 숨김)':'이슈 없음 — ⚡run now')+'</div>')+'</div>';
+ h+='<div class="sec">활동 피드</div><div>'+((L.feed||[]).map(function(e){if(e.type==='cycle'&&e.event==='done')return '<div class="feedline fe-cycle">🔁 '+esc(e.audit||'-')+' · 발행 '+((e.filed||[]).length)+' · spawn '+(((e.spawned||[]).join(', '))||'-')+' <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='cycle'&&e.event==='budget-skip')return '<div class="feedline fe-cycle">💰 '+esc(e.note||'예산 초과')+' — 사이클 skip <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='cycle'&&e.event==='trigger')return '<div class="feedline fe-cycle">⚡ '+esc(e.trigger||'')+' 이벤트 — 즉시 사이클 ('+esc(e.note||'')+') <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='cycle')return '<div class="feedline fe-cycle muted">🔁 cycle 시작 <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='worker'&&e.event==='rework')return '<div class="feedline fe-worker">🔁 '+esc(e.issue)+' 리뷰 재작업 (attempt '+(e.attempt||1)+') <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='worker'&&e.event==='rework-exhausted')return '<div class="feedline fe-worker">🔁 '+esc(e.issue)+' 재작업 상한 — 사람 확인 필요 <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='worker'&&e.event==='healed')return '<div class="feedline fe-worker">⟳ '+esc(e.issue)+' 자가복구 재기동 <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='worker')return '<div class="feedline fe-worker">🛠 '+esc(e.issue)+' spawn <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='verify'&&e.event==='verdict')return '<div class="feedline fe-worker">🔎 '+esc(e.issue)+' 검증 '+({pass:'✅ pass',concerns:'⚠️ concerns',fail:'❌ fail'}[e.verdict]||esc(e.verdict||''))+' <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='verify'&&e.event==='error')return '<div class="feedline fe-worker">🔎 '+esc(e.issue)+' 검증 오류 — '+esc(e.note||'')+' <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='verify')return '<div class="feedline fe-worker muted">🔎 '+esc(e.issue)+' 검증 시작 <span class=t>'+rel(e.ts)+'</span></div>';if(e.type==='retro')return '<div class="feedline fe-cycle">🧠 retro '+(e.changed?'— learnings 갱신':'— 변경 없음')+(e.note?' · '+esc(e.note):'')+' <span class=t>'+rel(e.ts)+'</span></div>';return'';}).join('')||'<div class=muted>활동 없음</div>')+'</div>';
+ document.getElementById('lbody').innerHTML=h;
+}
+function openSettings(){var L=lastData&&lastData.loops.find(function(x){return x.id===sel;});if(!L)return;
+ document.getElementById('otitle').textContent='⚙️ '+esc(L.name||sel)+' 설정';
+ document.getElementById('startAt').value=L.schedule.startAt||'';
+ document.getElementById('ivMin').value=Math.round((L.schedule.intervalSec||3600)/60);
+ document.getElementById('schedinfo').textContent=L.nextTs?('다음 발사 '+rel(L.nextTs)):(L.enabled?'':'(loop 꺼짐)');
+ document.getElementById('omodal').showModal();
+ fetch('api/mission?loop='+sel).then(function(r){return r.text();}).then(function(t){document.getElementById('missionbox').value=t;});
+ fetch('api/mission?loop='+sel+'&learnings=1').then(function(r){return r.text();}).then(function(t){document.getElementById('learningsbox').value=t;});
+ fetch('api/mission?loop='+sel+'&vision=1').then(function(r){return r.text();}).then(function(t){document.getElementById('visionbox').value=t;});
+ // raw = 이 루프가 실제로 갖고 있는 값(저장 폼의 value), eff = 제품 상속까지 반영한 값(placeholder 전용).
+ // ⚠️ eff를 value로 넣으면 안 된다 — 저장 시 제품 값이 루프 config에 복사돼 상속이 끊긴다. 빈 칸으로 저장하면 서버가 키를 지워 상속이 산다.
+ Promise.all([fetch('api/config?loop='+sel).then(function(r){return r.text();}),
+              fetch('api/config?loop='+sel+'&effective=1').then(function(r){return r.json();}).catch(function(){return {};})])
+ .then(function(a){var t=a[0],eff=a[1]||{};document.getElementById('cfgbox').value=t;var cfg={};try{cfg=JSON.parse(t);}catch(e){}
+  document.getElementById('cfgform').innerHTML=CFG_FIELDS.map(function(f){var v=cfg[f.k]==null?(f.def!=null?f.def:''):cfg[f.k];var ctrl;if(f.type==='select'){ctrl='<select id="cf_'+f.k+'">'+f.options.map(function(op){return '<option value="'+esc(op)+'"'+(String(v)===op?' selected':'')+'>'+esc(op)+'</option>';}).join('')+'</select>';}else{var inh=(cfg[f.k]==null&&eff[f.k]!=null&&eff[f.k]!=='')?String(eff[f.k]):'';ctrl='<input id="cf_'+f.k+'"'+(f.type==='number'?' type="number" min="1"':'')+' value="'+esc(v)+'"'+(inh?' placeholder="'+esc(inh)+' (제품 상속)"':'')+'>';}return '<div class="fld"><label for="cf_'+f.k+'" title="'+esc(f.hint||'')+'">'+f.label+'</label>'+ctrl+(f.hint?' <span class="muted" style="font-size:11px">'+esc(f.hint)+'</span>':'')+'</div>';}).join('');});}
+function closeO(){document.getElementById('omodal').close();}
+function openWS(){document.getElementById('linearkeybox').value='';document.getElementById('linkeystat').textContent=(lastData&&lastData.linearKey)?'✓ 설정됨':'⚠️ 미설정';var tg=(lastData&&lastData.telegram)||{};document.getElementById('tgtokenbox').value='';document.getElementById('tgstat').textContent=tg.configured?(tg.paired?'✓ 연결됨':'⏳ 페어링 대기'):'⚠️ 미설정';document.getElementById('tgrun').textContent=tg.running?'● 실행 중':'○ 정지';document.getElementById('wsmodal').showModal();}
+function closeWS(){document.getElementById('wsmodal').close();}
+function openR(){document.getElementById('rmodal').showModal();refR();refreshPush();}
+function closeR(){document.getElementById('rmodal').close();}
+function refR(){fetch('api/remote').then(function(r){return r.json();}).then(function(d){
+ var ts=d.tailscale||{},st;
+ if(!ts.installed)st='⚠️ tailscale 미설치 — tailscale.com/download';
+ else if(!ts.running)st='⚠️ tailscale 미실행 — 터미널에서 `tailscale up`';
+ else st='✅ tailscale 실행 중'+(ts.dnsName?(' · '+esc(ts.dnsName)):'');
+ if(d.authRequired)st+=' · 🔒 비밀번호 보호됨';
+ document.getElementById('rstat').innerHTML=st;
+ var on=!!d.on;
+ document.getElementById('rbtn_on').style.display=on?'none':'';
+ document.getElementById('rbtn_off').style.display=on?'':'none';
+ var live=document.getElementById('rlive');
+ if(on&&d.url){live.style.display='';document.getElementById('rurl').value=d.url;renderQR(d.url);}
+ else live.style.display='none';
+}).catch(function(){document.getElementById('rstat').textContent='상태 조회 실패';});}
+function remoteToggle(on){ctl(on?'remote-on':'remote-off').then(function(j){rflash(on?(j&&j.ok?'원격 켜짐':'실패'):'원격 끔');setTimeout(refR,400);});}
+function renderQR(url){var el=document.getElementById('rqr');if(!window.qrcode){el.style.lineHeight='';el.textContent='(QR 라이브러리 로드 실패 — vendor/qrcode.min.js)';return;}try{var qr=qrcode(0,'M');qr.addData(url);qr.make();el.innerHTML=qr.createSvgTag({cellSize:6,margin:2});}catch(e){el.style.lineHeight='';el.textContent='(QR 생성 실패: '+e.message+')';}}
+function copyRemoteUrl(){var v=document.getElementById('rurl').value;if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(v).then(function(){rflash('복사됨');},function(){rflash('복사 실패');});else{var i=document.getElementById('rurl');i.select();try{document.execCommand('copy');rflash('복사됨');}catch(e){rflash('복사 실패');}}}
+function rflash(m){var e=document.getElementById('rflash');if(e){e.textContent=m;setTimeout(function(){if(e.textContent===m)e.textContent='';},1800);}}
+/* ===== 웹푸시(PWA) ===== */
+function urlB64ToBytes(b64){var pad=(b64+'='.repeat((4-b64.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/');return Uint8Array.from(atob(pad),function(c){return c.charCodeAt(0);});}
+var isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.userAgent.includes('Mac')&&'ontouchend' in document);
+var installedPWA=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+function pushBlocker(){
+ if(!window.isSecureContext)return 'HTTPS에서만 알림을 켤 수 있습니다. 대시보드 ⋯→원격을 켠 뒤 폰에서 Tailscale HTTPS 주소로 여세요.';
+ if(isIOS&&!installedPWA)return 'iOS는 홈 화면에 추가한 앱에서만 푸시가 됩니다. 공유 → 홈 화면에 추가 후, 그 아이콘으로 여세요.';
+ if(!('serviceWorker' in navigator)||!('PushManager' in window))return '이 브라우저는 웹 푸시를 지원하지 않습니다.';
+ return null;}
+function refreshPush(){
+ var btn=document.getElementById('pushbtn'),test=document.getElementById('pushtest'),note=document.getElementById('pushnote');
+ var blk=pushBlocker();
+ if(blk){btn.disabled=true;btn.textContent='알림 사용 불가';test.style.display='none';note.textContent=blk;document.getElementById('pushloops').innerHTML='';return;}
+ navigator.serviceWorker.ready.then(function(reg){return reg.pushManager.getSubscription();}).then(function(sub){
+  var on=!!sub&&Notification.permission==='granted';
+  btn.disabled=false;btn.textContent=on?'알림 끄기':'알림 켜기';btn.classList.toggle('d',on);
+  test.style.display=on?'':'none';
+  note.textContent=on?'켜짐 — 루프가 사람을 기다리면 앱이 꺼져 있어도 폰이 울립니다.':'루프가 사람 판단(🔴)을 기다릴 때 폰으로 알림을 받습니다.';
+  renderPushLoops(on);
+ }).catch(function(e){note.textContent='알림 상태 확인 실패: '+e;});}
+function renderPushLoops(on){
+ var el=document.getElementById('pushloops');
+ fetch('api/push/prefs').then(function(r){return r.json();}).then(function(d){
+  if(!d.loops||!d.loops.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="muted" style="font-size:11px;margin-bottom:6px">루프별 알림'+(on?'':' <span style="opacity:.7">(먼저 알림을 켜세요)</span>')+'</div>'+d.loops.map(function(L){
+   var muted=d.muted&&d.muted[L.id];
+   return '<label style="display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13px;cursor:pointer'+(on?'':';opacity:.5')+'"><input type="checkbox" '+(muted?'':'checked')+(on?'':' disabled')+' onchange="pushMute(\''+esc(L.id)+'\',!this.checked)"> <span>'+esc(L.emoji)+' '+esc(L.name)+'</span></label>';
+  }).join('');
+ }).catch(function(){el.innerHTML='';});}
+function pushMute(loop,muted){fetch('api/push/mute',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({loop:loop,muted:muted})}).then(function(r){return r.json();}).then(function(j){rflash(muted?'해당 루프 알림 끔':'해당 루프 알림 켬');}).catch(function(){rflash('변경 실패');});}
+function pushToggle(){
+ (async function(){try{
+  var reg=await navigator.serviceWorker.ready, existing=await reg.pushManager.getSubscription();
+  if(existing){
+   await fetch('api/push/unsubscribe',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({endpoint:existing.endpoint})});
+   await existing.unsubscribe();rflash('알림 껐습니다');
+  }else{
+   if((await Notification.requestPermission())!=='granted'){document.getElementById('pushnote').textContent='알림 권한이 거부됐습니다. 설정에서 허용해주세요.';return;}
+   var key=(await (await fetch('api/push/key')).json()).key;
+   var sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlB64ToBytes(key)});
+   await fetch('api/push/subscribe',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(sub)});
+   rflash('알림 켰습니다');
+  }
+ }catch(e){document.getElementById('pushnote').textContent='알림 설정 실패: '+e;}refreshPush();})();}
+function pushTest(){fetch('api/push/test',{method:'POST'}).then(function(r){return r.json();}).then(function(j){rflash('테스트 푸시 전송('+(j.sent||0)+')');}).catch(function(e){rflash('테스트 실패');});}
+function saveConfigRaw(){var t=document.getElementById('cfgbox').value,o;try{o=JSON.parse(t);}catch(e){alert('JSON 오류: '+e.message);return;}ctl('save-config-raw',{config:o}).then(function(j){if(j&&j.ok)flash('raw config 저장됨');});}
+function flash(m){['oflash','wsflash','pflash'].forEach(function(id){var e=document.getElementById(id);if(e){e.textContent=m;setTimeout(function(){if(e.textContent===m)e.textContent='';},2500);}});}
+var attLabel={'merge-ready':'머지 대기','ci-failed':'CI 실패','changes':'변경요청','human-gate':'사람 판단','pr-closed':'PR 닫힘 — 정리 필요','stalled-worker':'⚠️ worker 탭 없음(완료됐거나 중단됨) — 확인 필요','stuck':'🧟 멈춤 · 자가복구 실패','wedged':'🥶 화면 정지(멈춘 OMP) — 내용보기 후 ✕닫기 시 자가복구','rework-exhausted':'🔁 재작업 상한 — 사람 확인 필요'};
+function isTerminal(s){return s==='Done'||s==='Canceled'||s==='Cancelled';}
+// Oat 배지: 색→variant. 중립은 outline(요란한 solid 기본 회피).
+var VMAP={'var(--danger)':'danger','var(--warning)':'warning','var(--success)':'success','var(--info)':'info','var(--muted-foreground)':''};
+function badge(txt,v,tip){return ' <span class="badge'+(v?'':' outline')+'"'+(v?' data-variant="'+v+'"':'')+(tip?' title="'+esc(tip)+'"':'')+'>'+txt+'</span>';}
+function chip(txt,col,tip){return badge(txt,VMAP[col]||'',tip);}
+var STVAR={'Backlog':'','In Progress':'warning','In Review':'info','Done':'success','Canceled':'secondary','Cancelled':'secondary'};
+function stateBadge(s){return badge(esc(s),STVAR[s]==null?'':STVAR[s]);}
+function pchip(p){var m={Urgent:['Urgent','danger'],High:['High','warning'],Medium:['Medium','info'],Low:['Low','']}[p];return m?badge(m[0],m[1],'우선순위: '+p):'';}
+function prChips(w){
+ if(!w.pr)return'';
+ if(w.merged)return chip('머지됨','var(--success)');
+ if(w.prState==='CLOSED')return chip('닫힘','var(--danger)');
+ var s='',ci=w.ci;
+ if(ci){if(ci.fail>0)s+=chip('CI '+ci.fail,'var(--danger)','CI 실패 '+ci.fail+'개');else if(ci.pending>0)s+=chip('CI '+ci.pending,'var(--warning)','CI 진행중 '+ci.pending+'개');else if(ci.pass>0)s+=chip('CI','var(--success)','CI 통과 '+ci.pass+'개');}
+ var rd=w.review;
+ if(rd==='APPROVED')s+=chip('승인','var(--success)');
+ else if(rd==='CHANGES_REQUESTED')s+=chip('변경요청','var(--danger)');
+ else if(w.reviewCount>0)s+=chip('리뷰 '+w.reviewCount,'var(--info)','리뷰 '+w.reviewCount+'개'+(w.commentCount?', 코멘트 '+w.commentCount:''));
+ else s+=' <span class="muted" style="font-size:11px">리뷰 대기</span>';
+ return s;
+}
+document.addEventListener('keydown',function(ev){
+ if(ev.key==='Escape'){closeS();closeC();closeG();closeO();closeWS();}
+ if((ev.metaKey||ev.ctrlKey)&&(ev.key==='s'||ev.key==='S')){var a=document.activeElement;if(a&&a.id==='missionbox'){ev.preventDefault();saveMission();}else if(a&&a.id==='cfgbox'){ev.preventDefault();saveConfigRaw();}else if(a&&a.id&&a.id.indexOf('cf_')===0){ev.preventDefault();saveConfig();}}
+ if((ev.metaKey||ev.ctrlKey)&&ev.key==='Enter'){var a=document.activeElement;if(a&&a.id==='c_desc'){ev.preventDefault();buildLoop();}else if(a&&a.id==='g_decision'){ev.preventDefault();submitGate();}}
+});
+function renderConnLost(){var el=document.getElementById('connlost');if(failCount<2){el.innerHTML='';return;}var ago=lastOk?' — 마지막 갱신 '+rel(Math.floor(lastOk/1000)):'';el.innerHTML='<span class="cl">⚠️ 서버 연결 끊김'+ago+'</span>';}
+/* 폴링은 2초마다지만 응답이 2초 안에 못 오는 링크(폰·셀룰러)에선 요청이 겹쳐 쌓인다.
+   쌓이면 브라우저 동시연결 한도에 걸려 fetch가 줄줄이 타임아웃 → failCount가 올라
+   "서버 연결 끊김"이 뜬다. 실제로 끊긴 게 아니라 우리가 자초한 정체다.
+   그래서 (1) 앞선 요청이 끝나기 전엔 새로 쏘지 않고, (2) 탭이 백그라운드면 아예 쉰다.
+   ?loop= 는 지금 보고 있는 루프만 이슈를 실어달라는 뜻 — 나머지 10개 루프의 이슈는
+   화면에 그려지지도 않으면서 응답의 대부분을 차지하고 있었다. */
+var inflight=false;
+function load(){
+ if(inflight)return;
+ inflight=true;
+ fetch('api/status?loop='+encodeURIComponent(sel||''))
+  .then(function(r){return r.json();})
+  .then(function(d){failCount=0;lastOk=Date.now();render(d);renderConnLost();})
+  .catch(function(){failCount++;renderConnLost();})
+  .then(function(){inflight=false;});
+}
+function tick(){if(document.hidden)return;load();}
+/* PWA 서비스워커 등록(푸시 수신용) + 알림 클릭 딥링크(?loop=) */
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{scope:'./'}).catch(function(e){console.warn('SW 등록 실패',e);});
+navigator.serviceWorker&&navigator.serviceWorker.addEventListener('message',function(e){if(e.data&&e.data.type==='select-loop'&&e.data.loop)selectLoop(e.data.loop);});
+(function(){var dl=new URLSearchParams(location.search).get('loop');if(dl){sel=dl;localStorage.setItem('loop',dl);}})();
+/* 왼쪽 엣지 스와이프 → 사이드바 열기 / 열린 상태에서 왼쪽 스와이프 → 닫기 (모바일 기본 제스처, 손가락 따라옴) */
+(function(){
+ var side=document.getElementById('side'), bd=document.getElementById('backdrop');
+ if(!side||!bd)return;
+ var EDGE=30, sx=0, sy=0, w=300, active=false, dragging=false, tx=0, openStart=false;
+ var mobile=function(){return matchMedia('(max-width:820px)').matches;};
+ addEventListener('touchstart',function(e){
+  active=false;dragging=false;
+  if(!mobile()||e.touches.length!==1||document.querySelector('dialog[open]'))return;
+  var t=e.touches[0], open=document.body.classList.contains('nav-open');
+  if(!open && t.clientX>EDGE)return;                 // 닫힘: 왼쪽 엣지에서 시작한 것만
+  sx=t.clientX;sy=t.clientY;openStart=open;w=side.offsetWidth||300;active=true;
+ },{passive:true});
+ addEventListener('touchmove',function(e){
+  if(!active||e.touches.length!==1)return;
+  var t=e.touches[0],dx=t.clientX-sx,dy=t.clientY-sy;
+  if(!dragging){
+   if(Math.abs(dx)<10&&Math.abs(dy)<10)return;
+   if(Math.abs(dy)>Math.abs(dx)){active=false;return;} // 세로 스크롤 의도 → 제스처 포기(스크롤 허용)
+   dragging=true;side.style.transition='none';bd.style.transition='none';
+  }
+  tx=Math.max(-w,Math.min(0,(openStart?0:-w)+dx));     // 손가락 따라 드로어 이동
+  side.style.transform='translateX('+tx+'px)';
+  bd.style.opacity=((tx+w)/w).toFixed(3);              // 백드롭 딤도 진행도에 맞춰
+  e.preventDefault();                                  // 가로 드래그 중 페이지 스크롤 차단
+ },{passive:false});
+ var end=function(){
+  if(!active)return; active=false;
+  side.style.transition='';side.style.transform='';bd.style.transition='';bd.style.opacity='';
+  if(dragging){document.body.classList.toggle('nav-open', tx > -w/2);dragging=false;}  // 절반 넘으면 스냅
+ };
+ addEventListener('touchend',end,{passive:true});
+ addEventListener('touchcancel',end,{passive:true});
+})();
+load();setInterval(tick,2000);
+/* 백그라운드에 있는 동안은 폴링을 멈췄으니, 돌아온 순간 한 번은 즉시 채워준다. */
+addEventListener('visibilitychange',function(){if(!document.hidden)load();});
+</script>
+<script src="vendor/oat.min.js" defer></script>
+</body></html>
