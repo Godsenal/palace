@@ -69,6 +69,8 @@ export interface AutomationSnapshot {
   approved: Record<string, boolean>
   runs: AutomationRun[]
   sync: SyncStatus
+  schedules?: Record<string, string>
+  schedulerErrors?: Record<string, string>
   schedulerError?: string
 }
 export interface RunDetail { run: AutomationRun; logs: RunLog[] }

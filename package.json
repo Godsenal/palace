@@ -10,11 +10,18 @@
     "extends": "./electron-builder.config.cjs"
   },
   "scripts": {
-    "postinstall": "electron-builder install-app-deps",
     "dev": "electron-vite dev",
     "start": "electron-vite preview",
     "build": "electron-vite build",
     "service": "node out/main/automation-service.js",
+    "companion:build": "node scripts/build-companion.mjs",
+    "companion": "node out/companion-server/companion-service.cjs",
+    "companion:pair": "node out/companion-server/companion-service.cjs pair",
+    "companion:rotate-token": "node out/companion-server/companion-service.cjs rotate-token",
+    "companion:install": "node scripts/companion-launchd.mjs install",
+    "companion:uninstall": "node scripts/companion-launchd.mjs uninstall",
+    "companion:status": "node scripts/companion-launchd.mjs status",
+    "companion:test": "npm run companion:build && node --test scripts/companion.test.mjs",
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
@@ -28,7 +35,6 @@
     "dompurify": "^3.1.7",
     "electron-updater": "^6.3.9",
     "marked": "^14.1.3",
-    "node-pty": "^1.1.0",
     "qrcode": "^1.5.4",
     "yaml": "^2.9.1"
   },

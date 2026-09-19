@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { palace } from '../../api'
 import type { SetupStatus } from '../../../../shared/workbench'
 import type { MachineSettings } from '../../../../shared/automation'
-import { messageOf } from './RichText'
+import { messageOf } from './helpers'
 import { WorkbenchIcon } from './WorkbenchIcon'
 
 type Repository = { name: string; url: string; private: boolean }

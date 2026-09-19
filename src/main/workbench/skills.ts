@@ -1,8 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto'
 import { chmod, lstat, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import type { MachineSettings } from '../../shared/automation'
-import type { InstalledSkill, SkillCandidate, SkillPreview, SkillsAPI } from '../../shared/workbench'
+import type { InstalledSkill, SkillCandidate, SkillLocations, SkillPreview, SkillsAPI, SkillTarget } from '../../shared/workbench'
 import { SkillRepositoryCache, type RepositoryFile, type RepositorySkill, type RepositorySnapshot, normalizeSkillSource } from './skills-repository'
 
 const MANIFEST_VERSION = 1
@@ -31,6 +32,7 @@ export type SkillRecipes = Record<string, SkillRecipe[]>
 interface StoredManifest {
   version: 1
   projects: Record<string, Record<string, SkillManifestEntry>>
+  global: Record<string, SkillManifestEntry>
 }
 
 export interface SkillsServiceOptions {
@@ -39,6 +41,11 @@ export interface SkillsServiceOptions {
 }
 
 type TrackedInstallState = 'missing' | 'unchanged' | 'modified'
+interface ResolvedSkillTarget {
+  scope: SkillTarget['scope']
+  root: string
+  skillsRoot: string
+}
 
 interface RecipeProjectPlan {
   aliases: string[]
@@ -147,6 +154,13 @@ export class SkillsService implements SkillsAPI {
     this.recipeFile = join(this.root, 'workbench', 'skill-recipes.json')
   }
 
+  async locations(): Promise<SkillLocations> {
+    const projects = Object.fromEntries(
+      Object.entries(this.getSettings().projectPaths).map(([name, path]) => [name, join(resolve(path), '.agent', 'skills')])
+    )
+    return { globalPath: join(resolve(homedir()), '.agents', 'skills'), projects }
+  }
+
   async search(query: string): Promise<SkillCandidate[]> {
     if (typeof query !== 'string' || query.length > 200) throw new Error('검색어는 200자 이내로 입력하세요.')
     const value = query.trim()
@@ -201,42 +215,42 @@ export class SkillsService implements SkillsAPI {
     }
   }
 
-  async list(project: string): Promise<InstalledSkill[]> {
-    const projectRoot = await this.projectRoot(project)
-    const records = await this.projectRecords(projectRoot)
+  async list(requested: SkillTarget): Promise<InstalledSkill[]> {
+    const target = await this.resolveTarget(requested)
+    const records = await this.targetRecords(target)
     const result: InstalledSkill[] = []
-    for (const record of Object.values(records)) result.push(await this.installedView(projectRoot, record))
+    for (const record of Object.values(records)) result.push(await this.installedView(target, record))
     return result.sort((left, right) => left.name.localeCompare(right.name))
   }
 
-  async install(project: string, source: string, skillId: string, revision: string): Promise<InstalledSkill> {
-    const projectRoot = await this.projectRoot(project)
+  async install(requested: SkillTarget, source: string, skillId: string, revision: string): Promise<InstalledSkill> {
+    const target = await this.resolveTarget(requested)
     const canonical = await normalizeSkillSource(source)
     this.requirePreview(canonical, skillId, revision)
     const snapshot = await this.repositories.snapshot(canonical, revision)
     const skill = this.select(snapshot, skillId)
-    return this.installSnapshot(projectRoot, snapshot, skill, false)
+    return this.installSnapshot(target, snapshot, skill, false)
   }
 
-  async update(project: string, id: string, revision: string): Promise<InstalledSkill> {
-    const projectRoot = await this.projectRoot(project)
-    const records = await this.projectRecords(projectRoot)
+  async update(requested: SkillTarget, id: string, revision: string): Promise<InstalledSkill> {
+    const target = await this.resolveTarget(requested)
+    const records = await this.targetRecords(target)
     const current = records[safeId(id)]
-    if (!current) throw new Error('Palace가 추적하는 설치 스킬이 아닙니다.')
-    if ((await this.installedView(projectRoot, current)).modified) throw new Error('로컬 파일이 수정되어 업데이트하지 않았습니다. 변경을 보존하거나 되돌린 뒤 다시 시도하세요.')
+    if (!current) throw new Error('선택한 설치 위치에서 Palace가 추적하는 스킬이 아닙니다.')
+    if ((await this.installedView(target, current)).modified) throw new Error('로컬 파일이 수정되어 업데이트하지 않았습니다. 변경을 보존하거나 되돌린 뒤 다시 시도하세요.')
     this.requirePreview(current.source, current.id, revision)
     const snapshot = await this.repositories.snapshot(current.source, revision)
     const skill = snapshot.skills.find((candidate) => candidate.directory === (current.skillPath === '.' ? '' : current.skillPath)) ?? this.select(snapshot, current.id)
     if (skill.id !== current.id) throw new Error('새 리비전에서 스킬 ID가 바뀌어 자동 업데이트하지 않았습니다.')
-    return this.installSnapshot(projectRoot, snapshot, skill, true, current)
+    return this.installSnapshot(target, snapshot, skill, true, current)
   }
 
-  async remove(project: string, id: string): Promise<void> {
-    const projectRoot = await this.projectRoot(project)
-    const records = await this.projectRecords(projectRoot)
+  async remove(requested: SkillTarget, id: string): Promise<void> {
+    const target = await this.resolveTarget(requested)
+    const records = await this.targetRecords(target)
     const record = records[safeId(id)]
-    if (!record) throw new Error('Palace가 추적하는 스킬만 삭제할 수 있습니다.')
-    await this.removeTracked(projectRoot, record)
+    if (!record) throw new Error('선택한 설치 위치에서 Palace가 추적하는 스킬만 삭제할 수 있습니다.')
+    await this.removeTracked(target, record)
   }
 
   async manifest(project: string): Promise<SkillManifestEntry[]> {
@@ -251,7 +265,7 @@ export class SkillsService implements SkillsAPI {
       safeId(requested.id)
       const existing = (await this.projectRecords(projectRoot))[requested.id]
       if (existing) {
-        const view = await this.installedView(projectRoot, existing)
+        const view = await this.installedView(this.projectTarget(projectRoot), existing)
         if (view.modified) throw new Error(`${requested.id}: 로컬 수정이 있어 동기화 설치를 중단했습니다.`)
         if (existing.revision === requested.revision && existing.source === requested.source) {
           installed.push(view)
@@ -261,7 +275,7 @@ export class SkillsService implements SkillsAPI {
       const snapshot = await this.repositories.snapshot(requested.source, requested.revision)
       const skill = snapshot.skills.find((candidate) => candidate.directory === (requested.skillPath === '.' ? '' : requested.skillPath))
       if (!skill || skill.id !== requested.id) throw new Error(`${requested.id}: 고정 리비전에서 같은 스킬을 찾지 못했습니다.`)
-      installed.push(await this.installSnapshot(projectRoot, snapshot, skill, !!existing, existing))
+      installed.push(await this.installSnapshot(this.projectTarget(projectRoot), snapshot, skill, !!existing, existing))
     }
     return installed
   }
@@ -348,7 +362,7 @@ export class SkillsService implements SkillsAPI {
       for (const [key, record] of Object.entries(plan.records)) {
         if (key !== record.id) throw new Error(`${alias}: 스킬 설치 기록의 ID가 일치하지 않아 안전하게 동기화할 수 없습니다.`)
         safeId(record.id)
-        const state = await this.trackedInstallState(plan.projectRoot, record)
+        const state = await this.trackedInstallState(this.projectTarget(plan.projectRoot), record)
         plan.states.set(record.id, state)
         const recipe = desired.get(record.id)
         if ((!recipe || !sameRecipe(record, recipe)) && state === 'modified') {
@@ -358,7 +372,7 @@ export class SkillsService implements SkillsAPI {
       }
       for (const recipe of plan.recipes) {
         if (plan.records[recipe.id]) continue
-        const target = this.skillDirectory(plan.projectRoot, recipe.id)
+        const target = this.skillDirectory(this.projectTarget(plan.projectRoot), recipe.id)
         await assertSafeParents(plan.projectRoot, target)
         const existing = await lstat(target).catch((error: NodeJS.ErrnoException) => {
           if (error.code === 'ENOENT') return null
@@ -378,7 +392,7 @@ export class SkillsService implements SkillsAPI {
         const directory = recipe.skillPath === '.' ? '' : recipe.skillPath
         const skill = snapshot.skills.find((candidate) => candidate.id === recipe.id && candidate.directory === directory)
         if (!skill) throw new Error(`${alias}/${recipe.id}: 고정 리비전에서 같은 스킬을 찾지 못했습니다.`)
-        await this.installSnapshot(plan.projectRoot, snapshot, skill, !!existing, existing, `${alias}/${recipe.id}`, state)
+        await this.installSnapshot(this.projectTarget(plan.projectRoot), snapshot, skill, !!existing, existing, `${alias}/${recipe.id}`, state)
       }
     }
 
@@ -386,7 +400,7 @@ export class SkillsService implements SkillsAPI {
       const desired = new Set(plan.recipes.map((recipe) => recipe.id))
       for (const record of Object.values(plan.records)) {
         if (!desired.has(record.id)) {
-          await this.removeTracked(plan.projectRoot, record, `${plan.aliases[0]}/${record.id}`, plan.states.get(record.id))
+          await this.removeTracked(this.projectTarget(plan.projectRoot), record, `${plan.aliases[0]}/${record.id}`, plan.states.get(record.id))
         }
       }
       for (const alias of plan.aliases) delete deferred[alias]
@@ -424,6 +438,21 @@ export class SkillsService implements SkillsAPI {
     return files
   }
 
+  private async resolveTarget(target: SkillTarget): Promise<ResolvedSkillTarget> {
+    if (!target || typeof target !== 'object') throw new Error('스킬 설치 위치가 올바르지 않습니다.')
+    if (target.scope === 'global') {
+      const root = await realpath(resolve(homedir())).catch(() => null)
+      if (!root) throw new Error('현재 사용자의 홈 디렉터리가 존재하지 않습니다.')
+      const info = await lstat(root)
+      if (!info.isDirectory()) throw new Error('현재 사용자의 홈 경로가 디렉터리가 아닙니다.')
+      return { scope: 'global', root, skillsRoot: join(root, '.agents', 'skills') }
+    }
+    if (target.scope === 'project' && typeof target.project === 'string') {
+      return this.projectTarget(await this.projectRoot(target.project))
+    }
+    throw new Error('스킬 설치 위치가 올바르지 않습니다.')
+  }
+
   private async projectRoot(project: string): Promise<string> {
     const paths = this.getSettings().projectPaths
     const configured = paths[project] ?? Object.values(paths).find((path) => resolve(path) === resolve(project))
@@ -435,13 +464,17 @@ export class SkillsService implements SkillsAPI {
     return root
   }
 
-  private skillDirectory(projectRoot: string, id: string): string {
-    return join(projectRoot, '.agent', 'skills', safeId(id))
+  private projectTarget(root: string): ResolvedSkillTarget {
+    return { scope: 'project', root, skillsRoot: join(root, '.agent', 'skills') }
   }
 
-  private async trackedInstallState(projectRoot: string, record: SkillManifestEntry): Promise<TrackedInstallState> {
-    const target = this.skillDirectory(projectRoot, record.id)
-    await assertSafeParents(projectRoot, dirname(target))
+  private skillDirectory(installation: ResolvedSkillTarget, id: string): string {
+    return join(installation.skillsRoot, safeId(id))
+  }
+
+  private async trackedInstallState(installation: ResolvedSkillTarget, record: SkillManifestEntry): Promise<TrackedInstallState> {
+    const target = this.skillDirectory(installation, record.id)
+    await assertSafeParents(installation.root, dirname(target))
     const info = await lstat(target).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return null
       throw error
@@ -461,9 +494,9 @@ export class SkillsService implements SkillsAPI {
     }
   }
 
-  private async installedView(projectRoot: string, record: SkillManifestEntry): Promise<InstalledSkill> {
-    const target = this.skillDirectory(projectRoot, record.id)
-    const modified = await this.trackedInstallState(projectRoot, record).then((state) => state !== 'unchanged').catch(() => true)
+  private async installedView(installation: ResolvedSkillTarget, record: SkillManifestEntry): Promise<InstalledSkill> {
+    const target = this.skillDirectory(installation, record.id)
+    const modified = await this.trackedInstallState(installation, record).then((state) => state !== 'unchanged').catch(() => true)
     return {
       id: record.id,
       name: record.name,
@@ -477,38 +510,40 @@ export class SkillsService implements SkillsAPI {
   }
 
   private async removeTracked(
-    projectRoot: string,
+    installation: ResolvedSkillTarget,
     record: SkillManifestEntry,
     conflictLabel?: string,
     preflightState?: TrackedInstallState
   ): Promise<void> {
-    const target = this.skillDirectory(projectRoot, record.id)
-    let expectedMissing = false
-    if (conflictLabel) {
-      const state = await this.trackedInstallState(projectRoot, record)
-      if (preflightState === 'missing' && state !== 'missing') {
-        throw new Error(`${conflictLabel}: 비어 있던 설치 경로에 다른 디렉터리가 생겨 삭제하지 않았습니다.`)
-      }
-      if (state === 'modified') {
-        throw new Error(`${conflictLabel}: 로컬 파일이 수정되어 동기화 삭제를 중단했습니다. 변경을 보존하거나 되돌린 뒤 다시 시도하세요.`)
-      }
-      expectedMissing = state === 'missing'
+    const projectRoot = installation.root
+    const target = this.skillDirectory(installation, record.id)
+    const state = await this.trackedInstallState(installation, record)
+    if (preflightState === 'missing' && state !== 'missing') {
+      throw new Error(`${conflictLabel ?? record.id}: 비어 있던 설치 경로에 다른 디렉터리가 생겨 삭제하지 않았습니다.`)
     }
+    if (state === 'modified') {
+      throw new Error(`${conflictLabel ?? record.id}: 설치 파일이 수정되었거나 추적되지 않은 파일이 있어 삭제하지 않았습니다. 변경을 보존하거나 되돌린 뒤 다시 시도하세요.`)
+    }
+    const expectedMissing = state === 'missing'
     await assertSafeParents(projectRoot, target)
     const info = await lstat(target).catch((error: NodeJS.ErrnoException) => {
       if (error.code === 'ENOENT') return null
       throw error
     })
-    if (expectedMissing && info) throw new Error(`${conflictLabel}: 비어 있던 설치 경로에 다른 디렉터리가 생겨 삭제하지 않았습니다.`)
+    if (expectedMissing && info) throw new Error(`${conflictLabel ?? record.id}: 비어 있던 설치 경로에 다른 디렉터리가 생겨 삭제하지 않았습니다.`)
     if (info?.isSymbolicLink()) throw new Error('심볼릭 링크인 스킬 디렉터리는 삭제하지 않습니다.')
+    if (info && await this.trackedInstallState(installation, record) !== 'unchanged') {
+      throw new Error(`${conflictLabel ?? record.id}: 삭제 직전에 설치 파일이 변경되어 삭제하지 않았습니다.`)
+    }
     if (info) await rm(target, { recursive: true, force: false })
     await this.changeManifest((manifest) => {
-      if (manifest.projects[projectRoot]) delete manifest.projects[projectRoot][record.id]
+      if (installation.scope === 'global') delete manifest.global[record.id]
+      else if (manifest.projects[projectRoot]) delete manifest.projects[projectRoot][record.id]
     })
   }
 
   private async installSnapshot(
-    projectRoot: string,
+    installation: ResolvedSkillTarget,
     snapshot: RepositorySnapshot,
     skill: RepositorySkill,
     replacing: boolean,
@@ -516,10 +551,11 @@ export class SkillsService implements SkillsAPI {
     conflictLabel?: string,
     preflightState?: TrackedInstallState
   ): Promise<InstalledSkill> {
+    const projectRoot = installation.root
     const files = await this.safeFiles(snapshot, skill)
-    const skillsRoot = join(projectRoot, '.agent', 'skills')
-    const target = this.skillDirectory(projectRoot, skill.id)
-    const trackedState = trackedRecord ? await this.trackedInstallState(projectRoot, trackedRecord) : undefined
+    const skillsRoot = installation.skillsRoot
+    const target = this.skillDirectory(installation, skill.id)
+    const trackedState = trackedRecord ? await this.trackedInstallState(installation, trackedRecord) : undefined
     if (preflightState === 'missing' && trackedState !== 'missing') {
       throw new Error(`${conflictLabel ?? skill.id}: 비어 있던 설치 경로에 다른 디렉터리가 생겨 덮어쓰지 않습니다.`)
     }
@@ -557,7 +593,7 @@ export class SkillsService implements SkillsAPI {
       if (existing ? !finalExisting || existing.dev !== finalExisting.dev || existing.ino !== finalExisting.ino : finalExisting) {
         throw new Error(`${conflictLabel ?? skill.id}: 설치 중 대상 경로가 변경되어 덮어쓰지 않습니다.`)
       }
-      if (trackedRecord && await this.trackedInstallState(projectRoot, trackedRecord) !== trackedState) {
+      if (trackedRecord && await this.trackedInstallState(installation, trackedRecord) !== trackedState) {
         throw new Error(`${conflictLabel ?? skill.id}: 설치 중 로컬 파일이 수정되어 덮어쓰지 않습니다.`)
       }
       if (existing) await rename(target, backup)
@@ -579,8 +615,11 @@ export class SkillsService implements SkillsAPI {
       }
       try {
         await this.changeManifest((manifest) => {
-          manifest.projects[projectRoot] ??= {}
-          manifest.projects[projectRoot][record.id] = record
+          if (installation.scope === 'global') manifest.global[record.id] = record
+          else {
+            manifest.projects[projectRoot] ??= {}
+            manifest.projects[projectRoot][record.id] = record
+          }
         })
       } catch (error) {
         await rm(target, { recursive: true, force: true })
@@ -588,7 +627,7 @@ export class SkillsService implements SkillsAPI {
         throw error
       }
       if (existing) await rm(backup, { recursive: true, force: true }).catch(() => undefined)
-      return this.installedView(projectRoot, record)
+      return this.installedView(installation, record)
     } finally {
       await rm(temporary, { recursive: true, force: true }).catch(() => undefined)
     }
@@ -597,10 +636,12 @@ export class SkillsService implements SkillsAPI {
   private async readManifest(): Promise<StoredManifest> {
     try {
       const parsed = JSON.parse(await readFile(this.manifestFile, 'utf8')) as StoredManifest
-      if (parsed.version === MANIFEST_VERSION && parsed.projects && typeof parsed.projects === 'object') return parsed
-      throw new Error('version')
+      if (parsed.version !== MANIFEST_VERSION || !parsed.projects || typeof parsed.projects !== 'object') throw new Error('version')
+      if (parsed.global === undefined) parsed.global = {}
+      if (!parsed.global || typeof parsed.global !== 'object') throw new Error('global')
+      return parsed
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { version: MANIFEST_VERSION, projects: {} }
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { version: MANIFEST_VERSION, projects: {}, global: {} }
       throw new Error('스킬 설치 기록이 손상되어 안전하게 계속할 수 없습니다.')
     }
   }
@@ -608,6 +649,11 @@ export class SkillsService implements SkillsAPI {
   private async projectRecords(projectRoot: string): Promise<Record<string, SkillManifestEntry>> {
     return (await this.readManifest()).projects[projectRoot] ?? {}
   }
+  private async targetRecords(target: ResolvedSkillTarget): Promise<Record<string, SkillManifestEntry>> {
+    const manifest = await this.readManifest()
+    return target.scope === 'global' ? manifest.global : manifest.projects[target.root] ?? {}
+  }
+
 
   private async readRecipes(): Promise<SkillRecipes> {
     try {

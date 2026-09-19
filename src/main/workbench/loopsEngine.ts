@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import type { MachineSettings, PortableProfile } from '../../shared/automation'
 import type { EngineStatus, LoopsEngineAPI } from '../../shared/workbench'
 import { runCapture } from '../exec'
-import { materializeSessionRuntime } from './ide-profile'
+import { materializeSessionRuntime } from './session-runtime'
 
 type PortableEngine = NonNullable<NonNullable<PortableProfile['workbench']>['engine']>
 type PortableLoop = PortableEngine['loops'][string]

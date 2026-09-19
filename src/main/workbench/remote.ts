@@ -16,7 +16,7 @@ import type {
 } from '../../shared/workbench'
 import { detectShell, primeShellPath } from '../exec'
 import { shellCommand, shellQuote } from '../automation/rpc'
-import { materializeSessionRuntime } from './ide-profile'
+import { materializeSessionRuntime } from './session-runtime'
 
 const COMMAND_TIMEOUT_MS = 5_000
 const COMMAND_OUTPUT_LIMIT = 1024 * 1024

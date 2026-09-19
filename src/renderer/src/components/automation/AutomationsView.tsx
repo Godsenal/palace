@@ -31,7 +31,7 @@ export function AutomationsView({ snapshot, onSnapshot, showToast }: Props): JSX
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [models, setModels] = useState<Array<{ id: string; name: string; provider: string }>>([])
-  useEffect(() => { palace.ide.models().then(setModels).catch(() => setModels([])) }, [])
+  useEffect(() => { palace.omp.models().then(setModels).catch(() => setModels([])) }, [])
   const loops = snapshot.profile.loops
   const runningLoopIds = useMemo(() => new Set(snapshot.runs.filter((run) => ['queued', 'running', 'checking'].includes(run.status)).map((run) => run.loopId)), [snapshot.runs])
 

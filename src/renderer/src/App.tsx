@@ -11,15 +11,13 @@ import { RemoteView } from './components/workbench/RemoteView'
 import { SetupView } from './components/workbench/SetupView'
 import { SkillsView } from './components/workbench/SkillsView'
 import { WorkbenchIcon, type WorkbenchIconName } from './components/workbench/WorkbenchIcon'
-import { WorkspaceView } from './components/workbench/WorkspaceView'
 import './automation.css'
 import './workbench.css'
 
-type Navigation = 'remote' | 'workspace' | 'loops' | 'automations' | 'runs' | 'skills' | 'sync' | 'machine' | 'setup' | 'tools'
+type Navigation = 'remote' | 'loops' | 'automations' | 'runs' | 'skills' | 'sync' | 'machine' | 'setup' | 'tools'
 
 const NAVIGATION: Array<{ id: Navigation; label: string; description: string; icon: WorkbenchIconName }> = [
   { id: 'remote', label: 'OMP', description: 'cmux + OMP 개발', icon: 'terminal' },
-  { id: 'workspace', label: 'Workbench', description: '고급 내장 도우미', icon: 'workspace' },
   { id: 'loops', label: 'Loops', description: '자율 실행 엔진', icon: 'loop' },
   { id: 'automations', label: 'Automations', description: '예약 워크플로', icon: 'automation' },
   { id: 'runs', label: 'Runs', description: '실행 기록', icon: 'runs' },
@@ -73,21 +71,20 @@ export default function App(): JSX.Element {
 
   return <div className="wb-app">
     <aside className={`wb-global-nav ${mobileNav ? 'is-open' : ''}`}>
-      <div className="wb-brand"><span className="wb-brand-mark">P</span><span><strong>Palace</strong><small>cmux + OMP Agent IDE</small></span><button className="wb-icon-button wb-mobile-only" type="button" aria-label="탐색 닫기" onClick={() => setMobileNav(false)}><WorkbenchIcon name="close" /></button></div>
+      <div className="wb-brand"><span className="wb-brand-mark">P</span><span><strong>Palace</strong><small>Native cmux + OMP</small></span><button className="wb-icon-button wb-mobile-only" type="button" aria-label="탐색 닫기" onClick={() => setMobileNav(false)}><WorkbenchIcon name="close" /></button></div>
       <nav aria-label="주요 탐색">
         <div className="wb-nav-section">Develop</div>
-        {NAVIGATION.slice(0, 3).map((item) => <NavButton item={item} active={navigation === item.id} onClick={() => navigate(item.id)} key={item.id} />)}
+        {NAVIGATION.slice(0, 2).map((item) => <NavButton item={item} active={navigation === item.id} onClick={() => navigate(item.id)} key={item.id} />)}
         <div className="wb-nav-section">Operate</div>
-        {NAVIGATION.slice(3, 7).map((item) => <NavButton item={item} active={navigation === item.id} count={item.id === 'runs' && automationStatus.running ? automationStatus.running : undefined} onClick={() => navigate(item.id)} key={item.id} />)}
+        {NAVIGATION.slice(2, 6).map((item) => <NavButton item={item} active={navigation === item.id} count={item.id === 'runs' && automationStatus.running ? automationStatus.running : undefined} onClick={() => navigate(item.id)} key={item.id} />)}
         <div className="wb-nav-section">Configure</div>
-        {NAVIGATION.slice(7).map((item) => <NavButton item={item} active={navigation === item.id} onClick={() => navigate(item.id)} key={item.id} />)}
+        {NAVIGATION.slice(6).map((item) => <NavButton item={item} active={navigation === item.id} onClick={() => navigate(item.id)} key={item.id} />)}
       </nav>
       <div className="wb-global-status"><span className={`wb-status-light ${automationStatus.online ? 'is-on' : ''}`} /><span><strong>{automationStatus.online ? '로컬 서비스 연결됨' : '상태 확인 중'}</strong><small>{automationStatus.machineId || 'Palace OMP'}</small></span></div>
     </aside>
     <main className="wb-main">
       <div className="wb-titlebar"><button className="wb-icon-button wb-mobile-only" type="button" aria-label="메뉴 열기" onClick={() => setMobileNav(true)}><WorkbenchIcon name="menu" /></button><span>{NAVIGATION.find((item) => item.id === navigation)?.label}</span></div>
       <RemoteView visible={navigation === 'remote'} showToast={showToast} />
-      <WorkspaceView visible={navigation === 'workspace'} showToast={showToast} onOpenNative={() => navigate('remote')} />
       <LoopsView visible={navigation === 'loops'} />
       <div className="wb-legacy-surface" hidden={!automationVisible}><AutomationConsole section={automationSection} hidden={!automationVisible} showToast={showToast} onStatusChange={updateAutomationStatus} /></div>
       <SkillsView visible={navigation === 'skills'} showToast={showToast} />

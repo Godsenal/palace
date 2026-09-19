@@ -26,31 +26,19 @@ const api: PalaceAPI = {
     webhook: (id) => ipcRenderer.invoke('palace:automation', 'webhook', [id]),
     service: (action) => ipcRenderer.invoke('palace:automationService', action)
   },
-  ide: {
-    snapshot: () => workbench('ide', 'snapshot'),
-    models: () => workbench('ide', 'models'),
-    createWorkspace: (input) => workbench('ide', 'createWorkspace', [input]),
-    archiveWorkspace: (id) => workbench('ide', 'archiveWorkspace', [id]),
-    createSession: (input) => workbench('ide', 'createSession', [input]),
-    detail: (id, after) => workbench('ide', 'detail', [id, after ?? 0]),
-    prompt: (id, text, mode) => workbench('ide', 'prompt', [id, text, mode ?? 'prompt']),
-    respond: (id, questionId, response) => workbench('ide', 'respond', [id, questionId, response]),
-    abort: (id) => workbench('ide', 'abort', [id]),
-    resume: (id) => workbench('ide', 'resume', [id]),
-    closeSession: (id) => workbench('ide', 'closeSession', [id]),
-    command: (id, command, args) => workbench('ide', 'command', [id, command, args ?? {}]),
-    changes: (id) => workbench('ide', 'changes', [id]),
-    readFile: (id, path) => workbench('ide', 'readFile', [id, path]),
-    saveProfiles: (profiles) => workbench('ide', 'saveProfiles', [profiles]),
-    heartbeat: (id, value) => workbench('ide', 'heartbeat', [id, value])
+  omp: {
+    models: () => workbench('omp', 'models'),
+    profiles: () => workbench('omp', 'profiles'),
+    saveProfiles: (profiles) => workbench('omp', 'saveProfiles', [profiles])
   },
   skills: {
+    locations: () => workbench('skills', 'locations'),
     search: (query) => workbench('skills', 'search', [query]),
     preview: (source, id) => workbench('skills', 'preview', id ? [source, id] : [source]),
-    list: (project) => workbench('skills', 'list', [project]),
-    install: (project, source, id, revision) => workbench('skills', 'install', [project, source, id, revision]),
-    update: (project, id, revision) => workbench('skills', 'update', [project, id, revision]),
-    remove: (project, id) => workbench('skills', 'remove', [project, id])
+    list: (target) => workbench('skills', 'list', [target]),
+    install: (target, source, id, revision) => workbench('skills', 'install', [target, source, id, revision]),
+    update: (target, id, revision) => workbench('skills', 'update', [target, id, revision]),
+    remove: (target, id) => workbench('skills', 'remove', [target, id])
   },
   loops: {
     status: () => workbench('loops', 'status'),

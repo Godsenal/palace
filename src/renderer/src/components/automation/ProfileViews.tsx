@@ -27,7 +27,7 @@ export function OmpSyncView({ snapshot, onSnapshot, showToast }: Props): JSX.Ele
   const [showAdvancedConfig, setShowAdvancedConfig] = useState(false)
   const [models, setModels] = useState<Array<{ id: string; name: string; provider: string }>>([])
 
-  useEffect(() => { palace.ide.models().then(setModels).catch(() => setModels([])) }, [])
+  useEffect(() => { palace.omp.models().then(setModels).catch(() => setModels([])) }, [])
   useEffect(() => { palace.setup.repositories().then(setRepositories).catch(() => setRepositories([])) }, [])
 
   const commonConfig = useMemo(() => {

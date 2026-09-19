@@ -8,8 +8,6 @@ module.exports = {
   productName: 'Palace OMP',
   directories: { output: 'dist', buildResources: 'resources' },
   files: ['out/**'],
-  asarUnpack: ['node_modules/node-pty/**'],
-  buildDependenciesFromSource: true,
   extraResources: [{ from: 'engines/loops', to: 'engines/loops', filter: ['**/*', '!**/.git/**', '!test/**', '!loops/**', '!products/**', '!state/**', '!loops.env'] }],
   mac: {
     category: 'public.app-category.developer-tools',

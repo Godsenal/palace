@@ -6,7 +6,6 @@ import { createHash } from 'node:crypto'
 import type { AutomationAPI, AutomationSnapshot, ServiceStatus } from '../shared/automation'
 import { AUTOMATION_PORT } from '../shared/automation'
 import { WORKBENCH_METHODS } from '../shared/workbench'
-import type { WorkbenchSnapshot } from '../shared/workbench'
 import { setTimeout as delay } from 'node:timers/promises'
 import { primeShellPath, runCapture } from './exec'
 
@@ -90,8 +89,6 @@ async function stopIdleService(): Promise<void> {
   if (!d) return
   const state = await invoke('snapshot', []) as AutomationSnapshot
   if (state.runs.some((run) => ['queued', 'running', 'checking'].includes(run.status))) throw new Error('진행·대기 중인 작업을 마친 뒤 서비스 등록을 변경하세요.')
-  const workbench = await invoke('ide.snapshot', []) as WorkbenchSnapshot
-  if (workbench.sessions.some((session) => session.status === 'running' || session.status === 'waiting')) throw new Error('에이전트·터미널 작업을 마친 뒤 서비스 등록을 변경하세요.')
   process.kill(d.pid, 'SIGTERM')
   const deadline = Date.now() + 10_000
   while (Date.now() < deadline) {
@@ -109,8 +106,6 @@ async function configureService(action: 'status' | 'install' | 'uninstall'): Pro
     if (await alive()) {
       const state = await invoke('snapshot', []) as AutomationSnapshot
       if (state.runs.some((run) => ['queued', 'running', 'checking'].includes(run.status))) throw new Error('진행·대기 중인 작업을 마친 뒤 서비스 등록을 변경하세요.')
-      const workbench = await invoke('ide.snapshot', []) as WorkbenchSnapshot
-      if (workbench.sessions.some((session) => session.status === 'running' || session.status === 'waiting')) throw new Error('에이전트·터미널 작업을 마친 뒤 서비스 등록을 변경하세요.')
     }
     if (existsSync(plistPath)) {
       const result = await runCapture(`launchctl bootout ${quote(`${domain}/${label}`)}`, root)

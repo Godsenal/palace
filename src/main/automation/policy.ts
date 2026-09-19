@@ -1,4 +1,5 @@
-import { lstat, mkdir, writeFile } from 'node:fs/promises'
+import { lstat, mkdir, realpath, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, posix, relative, resolve, sep } from 'node:path'
 import type { PortableProfile } from '../../shared/automation'
 
@@ -206,6 +207,18 @@ export async function materializePolicy(
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
     }
   }
+  // Global discovery belongs to OMP, so provider priorities and source toggles still apply.
+  const readonlySkillDirectories = [...skillDirectories]
+  const globalSkills = join(homedir(), '.agents', 'skills')
+  try {
+    const canonicalGlobalSkills = await realpath(globalSkills)
+    const stat = await lstat(canonicalGlobalSkills)
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error('사용자 전역 .agents/skills는 실제 디렉터리여야 합니다')
+    if (!readonlySkillDirectories.includes(canonicalGlobalSkills)) readonlySkillDirectories.push(canonicalGlobalSkills)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+  }
+
 
   const topLevels = new Set<string>()
   for (const [rawPath, content] of Object.entries(profile.skills)) {
@@ -250,6 +263,6 @@ export async function materializePolicy(
   const overlay = mergeRecords(profile.config, safetyOverlay)
   await writeFile(overlayPath, `${JSON.stringify(overlay, null, 2)}\n`, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   await writeFile(instructionsPath, profile.instructions, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
-  await writeFile(extensionPath, guardExtensionSource(skillDirectories), { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+  await writeFile(extensionPath, guardExtensionSource(readonlySkillDirectories), { encoding: 'utf8', mode: 0o600, flag: 'wx' })
   return { overlayPath, instructionsPath, extensionPath, skillsRoot }
 }

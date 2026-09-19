@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FC } from 'react'
 import { palace } from '../../api'
 import type { EngineStatus } from '../../../../shared/workbench'
-import { messageOf } from './RichText'
+import { messageOf } from './helpers'
 import { WorkbenchIcon } from './WorkbenchIcon'
 const WebView = 'webview' as unknown as FC<{ className: string; src: string; allowpopups: string }>
 

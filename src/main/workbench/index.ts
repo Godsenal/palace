@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import type { AutomationSnapshot, PortableProfile } from '../../shared/automation'
 import { WORKBENCH_METHODS } from '../../shared/workbench'
 import type { AutomationService } from '../automation/service'
 import { writePrivateAtomic } from '../automation/store'
-import { IDEBackend } from './ide'
+import { OmpService } from './omp'
 import { SkillsService } from './skills'
 import { LoopsEngineHost } from './loopsEngine'
 import { NativeOmpRemoteService } from './remote'
@@ -12,7 +12,7 @@ import { SetupService } from './setup'
 
 
 export class Workbench {
-  readonly ide: IDEBackend
+  readonly omp: OmpService
   readonly skills: SkillsService
   readonly loops: LoopsEngineHost
   readonly remote: NativeOmpRemoteService
@@ -27,16 +27,16 @@ export class Workbench {
   constructor(private readonly core: AutomationService, root: string, private readonly automation: (method: string, args: unknown[]) => Promise<unknown>) {
     this.applyPath = join(root, 'workbench', 'apply-pending.json')
     const callbacks = { root, getSettings: () => core.getSettings(), getOmp: () => core.getProfile().omp }
-    this.ide = new IDEBackend(callbacks)
+    this.omp = new OmpService(callbacks)
     this.skills = new SkillsService(callbacks)
     const engineSource = process.env.PALACE_OMP_ENGINE_SOURCE || join(__dirname, '../../engines/loops')
     this.loops = new LoopsEngineHost({ ...callbacks, source: engineSource })
     this.setup = new SetupService(callbacks)
-    this.remote = new NativeOmpRemoteService({ ...callbacks, getProfiles: () => this.ide.exportProfiles(), engineSource })
+    this.remote = new NativeOmpRemoteService({ ...callbacks, getProfiles: () => this.omp.profiles(), engineSource })
   }
 
   async initialize(): Promise<void> {
-    await this.ide.initialize()
+    await this.omp.initialize()
     try {
       const checkpoint = JSON.parse(readFileSync(this.applyPath, 'utf8'))
       if (checkpoint?.pending !== true && checkpoint?.pending !== false) throw new Error('잘못된 적용 상태 파일입니다')
@@ -57,7 +57,7 @@ export class Workbench {
     if (this.capturing) return this.capturing
     this.capturing = (async () => {
       const previous = this.core.getProfile().workbench
-      const [profiles, recipes, engine] = await Promise.all([this.ide.exportProfiles(), this.skills.exportRecipes(), this.loops.exportPortable()])
+      const [profiles, recipes, engine] = await Promise.all([this.omp.profiles(), this.skills.exportRecipes(), this.loops.exportPortable()])
       // 아직 경로를 연결하지 않은 다른 머신의 레시피는 지우지 않는다.
       const skills = { ...previous?.skills, ...recipes }
       const meaningful = profiles.length > 0 || Object.values(skills).some((entries) => entries.length > 0) || Object.keys(engine.loops).length > 0 || Object.keys(engine.products).length > 0
@@ -74,7 +74,7 @@ export class Workbench {
     this.setPending(true)
     this.applying = (async () => {
       const profile = this.core.getProfile().workbench
-      await this.ide.importProfiles(profile?.profiles ?? [])
+      await this.omp.saveProfiles(profile?.profiles ?? [])
       await this.skills.importRecipes(profile?.skills ?? {})
       await this.loops.importPortable(profile?.engine ?? { loops: {}, products: {} })
       this.setPending(false)
@@ -105,7 +105,7 @@ export class Workbench {
   async dispatch(method: string, args: unknown[]): Promise<unknown> {
     if (typeof method !== 'string' || !Array.isArray(args) || args.length > 10) throw new Error('잘못된 워크벤치 요청입니다')
     const name = method.startsWith('automation.') ? method.slice(11) : method
-    const portable = ['snapshot', 'sync', 'saveSettings', 'ide.saveProfiles', 'skills.install', 'skills.update', 'skills.remove'].includes(name) || (method === 'loops.request' && args[1] === 'POST')
+    const portable = ['snapshot', 'sync', 'saveSettings', 'omp.saveProfiles', 'skills.install', 'skills.update', 'skills.remove'].includes(name) || (method === 'loops.request' && args[1] === 'POST')
     if (!portable) return this.dispatchCurrent(method, args)
     const operation = this.portableQueue.then(() => this.dispatchCurrent(method, args))
     this.portableQueue = operation.catch(() => undefined)
@@ -137,13 +137,22 @@ export class Workbench {
     }
     const [namespace, name, extra] = method.split('.')
     if (extra || !Object.hasOwn(WORKBENCH_METHODS, namespace) || !WORKBENCH_METHODS[namespace].includes(name)) throw new Error('지원하지 않는 워크벤치 메서드입니다')
-    const services = { ide: this.ide, skills: this.skills, loops: this.loops, remote: this.remote, setup: this.setup }
+    const services = { omp: this.omp, skills: this.skills, loops: this.loops, remote: this.remote, setup: this.setup }
     const service = services[namespace as keyof typeof services]
     const fn = (service as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>)[name]
-    const portableMutation = method === 'ide.saveProfiles' || ['skills.install', 'skills.update', 'skills.remove'].includes(method) || (method === 'loops.request' && args[1] === 'POST')
+    const skillMutation = ['skills.install', 'skills.update', 'skills.remove'].includes(method)
+    const skillTarget = skillMutation && args[0] && typeof args[0] === 'object' ? args[0] as Record<string, unknown> : undefined
+    const projectReference = skillTarget?.scope === 'project' && typeof skillTarget.project === 'string' ? skillTarget.project : undefined
+    const projectSkillMutation = projectReference !== undefined
+    const portableMutation = method === 'omp.saveProfiles' || projectSkillMutation || (method === 'loops.request' && args[1] === 'POST')
     if (this.pendingApply && portableMutation) {
-      const desiredSkills = this.core.getProfile().workbench?.skills?.[String(args[0])] ?? []
-      const resolvesRemoval = method === 'skills.remove' && !desiredSkills.some((entry) => entry.id === args[1])
+      const projectAlias = projectReference && (
+        Object.hasOwn(this.core.getSettings().projectPaths, projectReference)
+          ? projectReference
+          : Object.entries(this.core.getSettings().projectPaths).find(([, path]) => resolve(path) === resolve(projectReference))?.[0]
+      )
+      const desiredSkills = projectAlias ? this.core.getProfile().workbench?.skills?.[projectAlias] ?? [] : []
+      const resolvesRemoval = projectSkillMutation && method === 'skills.remove' && !desiredSkills.some((entry) => entry.id === args[1])
       const action = method === 'loops.request' && args[2] && typeof args[2] === 'object' ? (args[2] as Record<string, unknown>).action : undefined
       const runtimeAction = typeof action === 'string' && ['stop', 'pause', 'resume', 'loop-pause', 'loop-resume', 'toggle-enabled', 'resolve-gate', 'close-tab'].includes(action)
       if (!resolvesRemoval && !runtimeAction) await this.applyPortable()
@@ -159,7 +168,6 @@ export class Workbench {
   }
 
   async shutdown(): Promise<void> {
-    await this.ide.shutdown()
     await this.loops.stop()
   }
 }

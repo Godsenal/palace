@@ -625,6 +625,15 @@ export class AutomationService implements Omit<AutomationAPI, 'service'> {
       if (!current) throw new Error('루프가 삭제되었습니다')
       if (JSON.stringify(stableValue(current.trigger)) !== JSON.stringify(stableValue(loop.trigger))) throw new Error('예약 처리 중 루프 트리거가 변경되었습니다')
       this.requireExecutable(current, true)
+      const pending = this.state.runs.some((run) =>
+        run.loopId === current.id && (run.status === 'queued' || run.status === 'running' || run.status === 'checking')
+      )
+      if (pending) {
+        this.state.schedules[scheduleKey] = nextAt
+        delete this.state.schedulerErrors[loop.id]
+        this.store.saveState(this.state)
+        return
+      }
       this.enqueueLocked(current, trigger, context, dedupeKey)
       this.state.schedules[scheduleKey] = nextAt
       delete this.state.schedulerErrors[loop.id]
@@ -683,6 +692,8 @@ export class AutomationService implements Omit<AutomationAPI, 'service'> {
       approved,
       runs: this.state.runs.slice().reverse().map(publicRun),
       sync,
+      schedules: clone(this.state.schedules),
+      schedulerErrors: clone(this.state.schedulerErrors),
       schedulerError: Object.values(this.state.schedulerErrors).join('\n') || undefined
     }
   }
