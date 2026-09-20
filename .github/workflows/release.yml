@@ -1,27 +1,62 @@
 name: package-palace-omp
 
-# 별도 배포 채널을 연결하기 전에는 기존 Palace 릴리즈를 덮어쓰지 않는다.
+# 기존 Palace 안정판과 분리된 OMP 초안에만 설치 파일을 업로드한다.
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing Palace OMP prerelease draft tag; empty means package only
+        type: string
+        default: ''
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   package:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+          persist-credentials: false
+      - name: Validate release source
+        if: inputs.release_tag != ''
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          node -e 'const p = require("./package.json"); if (p.name !== "palace-omp" || process.env.RELEASE_TAG !== `palace-omp-v${p.version}`) throw new Error("Release tag must match the Palace OMP package version")'
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
       - run: npm run typecheck
-      - run: npm run dist:mac
+      - run: npm run companion:test && npm test
+      - name: Package both Mac architectures without publishing
+        run: npm run dist:mac -- --arm64 --x64 --publish never --config.directories.output=dist/release '--config.artifactName=Palace-OMP-${version}-${arch}.${ext}'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - name: Verify installers and generate checksums
+        working-directory: dist/release
+        run: |
+          for file in *.dmg; do hdiutil verify "$file"; done
+          for file in *.zip; do unzip -tq "$file"; done
+          shasum -a 256 *.dmg *.zip > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
+        if: inputs.release_tag == ''
         with:
           name: palace-omp-mac
           path: |
-            dist/*.dmg
-            dist/*.zip
+            dist/release/*.dmg
+            dist/release/*.zip
+            dist/release/SHA256SUMS.txt
+      - name: Upload to the existing OMP prerelease draft
+        if: inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          test "$(gh release view "$RELEASE_TAG" --json isDraft,isPrerelease --jq '.isDraft and .isPrerelease')" = true
+          gh release upload "$RELEASE_TAG" dist/release/*.dmg dist/release/*.zip dist/release/SHA256SUMS.txt --clobber
