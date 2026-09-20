@@ -238,6 +238,8 @@ npm run dist:mac     # macOS dmg/zip을 dist/에 생성
 
 `publish`는 `null`이고 기본 update feed도 연결되어 있지 않습니다. 따라서 이 저장소는 원본 Palace release를 게시하거나 원본 Palace 업데이트를 자동 설치하지 않습니다. 별도 `PALACE_OMP_UPDATE_URL`을 명시적으로 구성하지 않는 한 auto-update가 실행되지 않으며, 로컬 빌드는 어떤 release도 publish하지 않습니다.
 
+GitHub Actions의 `package-palace-omp` 워크플로는 `palace-omp` 브랜치에서 수동 실행합니다. `release_tag`를 비워 두면 패키지만 Actions artifact로 보관합니다. 기존 **draft + prerelease**의 `palace-omp-v<package version>` 태그를 지정하면 그 태그의 소스를 checkout하고, 양쪽 Mac 아키텍처의 DMG/ZIP을 검증한 뒤 `SHA256SUMS.txt`와 함께 해당 초안에 업로드합니다. 릴리스 공개는 별도로 검토 후 수행하며, 기존 Palace의 안정판·자동 업데이트 파일은 게시하지 않습니다.
+
 ## 보안 경계 요약
 
 - companion은 Tailscale 사설 HTTPS와 별도 페어링 토큰을 사용합니다. 기존 Palace의 native phone access는 OMP Collab capability입니다.
